@@ -1,175 +1,197 @@
 import * as React from 'react';
-import Avatar from '@mui/material/Avatar';
-import Button from '@mui/material/Button';
-import CssBaseline from '@mui/material/CssBaseline';
-import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
-import Link from '@mui/material/Link';
-import Paper from '@mui/material/Paper';
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import Typography from '@mui/material/Typography';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { AuthContext } from '../contexts/AuthContext';
-import { Snackbar } from '@mui/material';
-
-
-
-// TODO remove, this demo shouldn't need to reset the theme.
-
-const defaultTheme = createTheme();
+import { useNavigate } from 'react-router-dom';
+import styles from '../styles/modernGlass.module.css';
+import SkyConnectLogo from '../components/SkyConnectLogo';
 
 export default function Authentication() {
-
-    
-
-    const [username, setUsername] = React.useState();
-    const [password, setPassword] = React.useState();
-    const [name, setName] = React.useState();
-    const [error, setError] = React.useState();
-    const [message, setMessage] = React.useState();
-
-
+    const navigate = useNavigate();
+    const [username, setUsername] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [name, setName] = React.useState('');
+    const [error, setError] = React.useState('');
+    const [message, setMessage] = React.useState('');
     const [formState, setFormState] = React.useState(0);
-
-    const [open, setOpen] = React.useState(false)
-
+    const [isLoading, setIsLoading] = React.useState(false);
 
     const { handleRegister, handleLogin } = React.useContext(AuthContext);
 
     let handleAuth = async () => {
         try {
+            setIsLoading(true);
+            setError('');
+            
             if (formState === 0) {
-
-                let result = await handleLogin(username, password)
-
-
+                let result = await handleLogin(username, password);
+                setMessage('Login successful!');
             }
             if (formState === 1) {
                 let result = await handleRegister(name, username, password);
-                console.log(result);
                 setUsername("");
                 setMessage(result);
-                setOpen(true);
                 setError("")
                 setFormState(0)
                 setPassword("")
+                setName("");
             }
         } catch (err) {
-
-            console.log(err);
-            let message = (err.response.data.message);
+            let message = err.response?.data?.message || 'An error occurred';
             setError(message);
+        } finally {
+            setIsLoading(false);
         }
     }
 
-
     return (
-        <ThemeProvider theme={defaultTheme}>
-            <Grid container component="main" sx={{ height: '100vh' }}>
-                <CssBaseline />
-                <Grid
-                    item
-                    xs={false}
-                    sm={4}
-                    md={7}
-                    sx={{
-                        backgroundImage: 'url(https://source.unsplash.com/random?wallpapers)',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundColor: (t) =>
-                            t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}
-                />
-                <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
-                    <Box
-                        sx={{
-                            my: 8,
-                            mx: 4,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
+        <div className={styles.modernContainer}>
+            {/* Back Button */}
+            <button
+                onClick={() => navigate('/')}
+                style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '20px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(10px)',
+                    transition: 'all 0.3s ease',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+                onMouseOut={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+            >
+                <ArrowBackIcon />
+            </button>
+
+            <div className={styles.glassCard}>
+                <div className={styles.brandSection}>
+                    <div className={styles.logo}>
+                        <SkyConnectLogo size={64} animated={true} />
+                    </div>
+                    <h1 className={styles.brandTitle}>SkyConnect</h1>
+                    <p className={styles.brandSubtitle}>
+                        {formState === 0 ? 'Sign in to your account' : 'Create your account'}
+                    </p>
+                </div>
+
+                {/* Form Toggle */}
+                <div style={{
+                    display: 'flex',
+                    marginBottom: '24px',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}>
+                    <button
+                        onClick={() => setFormState(0)}
+                        style={{
+                            flex: 1,
+                            padding: '12px 24px',
+                            background: formState === 0 ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'transparent',
+                            border: 'none',
+                            color: 'white',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
                         }}
                     >
-                        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-                            <LockOutlinedIcon />
-                        </Avatar>
+                        Sign In
+                    </button>
+                    <button
+                        onClick={() => setFormState(1)}
+                        style={{
+                            flex: 1,
+                            padding: '12px 24px',
+                            background: formState === 1 ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'transparent',
+                            border: 'none',
+                            color: 'white',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
+                        }}
+                    >
+                        Sign Up
+                    </button>
+                </div>
 
-
-                        <div>
-                            <Button variant={formState === 0 ? "contained" : ""} onClick={() => { setFormState(0) }}>
-                                Sign In
-                            </Button>
-                            <Button variant={formState === 1 ? "contained" : ""} onClick={() => { setFormState(1) }}>
-                                Sign Up
-                            </Button>
-                        </div>
-
-                        <Box component="form" noValidate sx={{ mt: 1 }}>
-                            {formState === 1 ? <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                id="username"
-                                label="Full Name"
-                                name="username"
+                <div className={styles.formSection}>
+                    {formState === 1 && (
+                        <div className={styles.inputGroup}>
+                            <input
+                                type="text"
+                                placeholder="Full Name"
                                 value={name}
-                                autoFocus
                                 onChange={(e) => setName(e.target.value)}
-                            /> : <></>}
-
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                id="username"
-                                label="Username"
-                                name="username"
-                                value={username}
-                                autoFocus
-                                onChange={(e) => setUsername(e.target.value)}
-
+                                className={styles.modernInput}
                             />
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                name="password"
-                                label="Password"
-                                value={password}
-                                type="password"
-                                onChange={(e) => setPassword(e.target.value)}
+                        </div>
+                    )}
 
-                                id="password"
-                            />
+                    <div className={styles.inputGroup}>
+                        <input
+                            type="text"
+                            placeholder="Username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className={styles.modernInput}
+                        />
+                    </div>
 
-                            <p style={{ color: "red" }}>{error}</p>
+                    <div className={styles.inputGroup}>
+                        <input
+                            type="password"
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={styles.modernInput}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
+                        />
+                    </div>
 
-                            <Button
-                                type="button"
-                                fullWidth
-                                variant="contained"
-                                sx={{ mt: 3, mb: 2 }}
-                                onClick={handleAuth}
-                            >
-                                {formState === 0 ? "Login " : "Register"}
-                            </Button>
+                    {error && (
+                        <div className={styles.errorMessage}>
+                            {error}
+                        </div>
+                    )}
 
-                        </Box>
-                    </Box>
-                </Grid>
-            </Grid>
+                    {message && (
+                        <div className={styles.successMessage}>
+                            {message}
+                        </div>
+                    )}
 
-            <Snackbar
+                    <button
+                        onClick={handleAuth}
+                        disabled={isLoading}
+                        className={styles.primaryButton}
+                    >
+                        {isLoading && <div className={styles.loadingSpinner}></div>}
+                        {formState === 0 ? 'Sign In' : 'Create Account'}
+                    </button>
+                </div>
 
-                open={open}
-                autoHideDuration={4000}
-                message={message}
-            />
-
-        </ThemeProvider>
+                <div className={styles.linkText}>
+                    <p>
+                        {formState === 0 ? (
+                            <>New to SkyConnect? <a href="#" onClick={() => setFormState(1)}>Get started</a></>
+                        ) : (
+                            <>Already have an account? <a href="#" onClick={() => setFormState(0)}>Sign in</a></>
+                        )}
+                    </p>
+                </div>
+            </div>
+        </div>
     );
 }
