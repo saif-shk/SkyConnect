@@ -10,7 +10,7 @@ const app = express();
 const server = createServer(app);
 const io = connectToSocket(server);
 
-app.set("port", 8000)
+app.set("port", process.env.PORT || 8000)
 app.use(cors());
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
@@ -25,15 +25,15 @@ app.get("/", (req, res) => {
 const start = async () => {
     try {
         // MongoDB connection
-        const MONGO_URI = "mongodb+srv://nagaralprakash0_db_user:GTXGKsu4Xo8k0CtP@cluster0.qywwwxu.mongodb.net/skyconnect?retryWrites=true&w=majority"
+        const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://nagaralprakash0_db_user:GTXGKsu4Xo8k0CtP@cluster0.qywwwxu.mongodb.net/skyconnect?retryWrites=true&w=majority"
         await mongoose.connect(MONGO_URI)
         console.log(`✅ MongoDB Connected Successfully!`)
     } catch (error) {
         console.log('⚠️ MongoDB connection failed, continuing without database:', error.message);
     }
     
-    server.listen(8000, () => {
-        console.log("🚀 SkyConnect Backend running on PORT 8000")
+    server.listen(app.get("port"), () => {
+        console.log(`🚀 SkyConnect Backend running on PORT ${app.get("port")}`)
     });
 }
 

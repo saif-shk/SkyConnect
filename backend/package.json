@@ -2,10 +2,10 @@
   "name": "skyconnect-backend",
   "version": "1.0.0",
   "description": "SkyConnect video conferencing backend",
-  "main": "src/app.js",
+  "main": "src/app-simple.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node src/app-simple.js",
+    "dev": "nodemon src/app-simple.js",
     "build": "echo 'No build step required'"
   },
   "engines": {
