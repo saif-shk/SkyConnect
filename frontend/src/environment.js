@@ -1,5 +1,5 @@
 const server = process.env.NODE_ENV === 'production' ?
-    "https://skyconnect-backend.onrender.com" :
+    "https://skyconnect-backend2.onrender.com" :
     "http://localhost:8000"
 
 
