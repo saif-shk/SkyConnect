@@ -80,10 +80,15 @@ const VideoMeet = () => {
   useEffect(() => {
     console.log('Initializing socket connection...');
     const backendUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.REACT_APP_BACKEND_URL || window.location.origin
+      ? process.env.REACT_APP_BACKEND_URL || 'https://skyconnect-backend2.onrender.com'
       : 'http://localhost:8000';
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Backend URL:', process.env.REACT_APP_BACKEND_URL);
     console.log('Connecting to:', backendUrl);
-    socketRef.current = io(backendUrl);
+    socketRef.current = io(backendUrl, {
+      transports: ['websocket', 'polling'],
+      timeout: 20000
+    });
     
     socketRef.current.on('connect', () => {
       console.log('Socket connected');
@@ -93,6 +98,16 @@ const VideoMeet = () => {
     socketRef.current.on('disconnect', () => {
       console.log('Socket disconnected');
       setSocketConnected(false);
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      setSocketConnected(false);
+    });
+
+    socketRef.current.on('reconnect', () => {
+      console.log('Socket reconnected');
+      setSocketConnected(true);
     });
     
     socketRef.current.on('user-joined', (userData) => {
