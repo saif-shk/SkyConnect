@@ -9,7 +9,7 @@ const io = connectToSocket(server);
 
 app.set("port", process.env.PORT || 8000)
 app.use(cors({
-    origin: ["https://skyconnect-frontend.onrender.com", "http://localhost:3000"],
+    origin: ["https://skyconnect-frontend.onrender.com", "http://localhost:3000", "https://your-frontend-domain.vercel.app"],
     credentials: true
 }));
 app.use(express.json({ limit: "40kb" }));

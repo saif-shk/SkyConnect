@@ -79,7 +79,11 @@ const VideoMeet = () => {
   // Initialize socket
   useEffect(() => {
     console.log('Initializing socket connection...');
-    socketRef.current = io('http://localhost:8000');
+    const backendUrl = process.env.NODE_ENV === 'production' 
+      ? process.env.REACT_APP_BACKEND_URL || window.location.origin
+      : 'http://localhost:8000';
+    console.log('Connecting to:', backendUrl);
+    socketRef.current = io(backendUrl);
     
     socketRef.current.on('connect', () => {
       console.log('Socket connected');
