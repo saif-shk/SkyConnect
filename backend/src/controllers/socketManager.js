@@ -30,7 +30,12 @@ export const connectToSocket = (server) => {
             usernames[socket.id] = username || `User ${socket.id.slice(0, 4)}`;
             timeOnline[socket.id] = new Date();
 
-            console.log(`👥 Room ${path} now has ${connections[path].length} users`);
+            // Determine if this user is the host (first to join this room)
+            const isHost = connections[path].length === 1;
+            console.log(`👥 Room ${path} now has ${connections[path].length} users. ${socket.id} is ${isHost ? 'HOST' : 'participant'}`);
+
+            // Send host status to the joining user
+            io.to(socket.id).emit("host-status", { isHost });
 
             // Notify existing users about the new user
             for (let a = 0; a < connections[path].length - 1; a++) {
@@ -120,6 +125,76 @@ export const connectToSocket = (server) => {
                     if (elem !== socket.id) {
                         io.to(elem).emit("screen-share-ended", userId)
                     }
+                })
+            }
+        })
+
+        socket.on("typing-start", (username) => {
+            const [matchingRoom, found] = Object.entries(connections)
+                .reduce(([room, isFound], [roomKey, roomValue]) => {
+                    if (!isFound && roomValue.includes(socket.id)) {
+                        return [roomKey, true];
+                    }
+                    return [room, isFound];
+                }, ['', false]);
+
+            if (found === true) {
+                connections[matchingRoom].forEach((elem) => {
+                    if (elem !== socket.id) {
+                        io.to(elem).emit("typing-start", username, socket.id)
+                    }
+                })
+            }
+        })
+
+        socket.on("typing-stop", () => {
+            const [matchingRoom, found] = Object.entries(connections)
+                .reduce(([room, isFound], [roomKey, roomValue]) => {
+                    if (!isFound && roomValue.includes(socket.id)) {
+                        return [roomKey, true];
+                    }
+                    return [room, isFound];
+                }, ['', false]);
+
+            if (found === true) {
+                connections[matchingRoom].forEach((elem) => {
+                    if (elem !== socket.id) {
+                        io.to(elem).emit("typing-stop", socket.id)
+                    }
+                })
+            }
+        })
+
+        socket.on("pin-note", (noteData) => {
+            const [matchingRoom, found] = Object.entries(connections)
+                .reduce(([room, isFound], [roomKey, roomValue]) => {
+                    if (!isFound && roomValue.includes(socket.id)) {
+                        return [roomKey, true];
+                    }
+                    return [room, isFound];
+                }, ['', false]);
+
+            if (found === true) {
+                console.log(`📌 Note pinned in ${matchingRoom}:`, noteData.text);
+                connections[matchingRoom].forEach((elem) => {
+                    io.to(elem).emit("pin-note", noteData)
+                })
+            }
+        })
+
+        socket.on("dismiss-note", () => {
+            const [matchingRoom, found] = Object.entries(connections)
+                .reduce(([room, isFound], [roomKey, roomValue]) => {
+                    if (!isFound && roomValue.includes(socket.id)) {
+                        return [roomKey, true];
+                    }
+                    return [room, isFound];
+                }, ['', false]);
+
+            if (found === true) {
+                console.log(`❌ Note dismissed in ${matchingRoom}`);
+                connections[matchingRoom].forEach((elem) => {
+                    io.to(elem).emit("dismiss-note")
                 })
             }
         })
