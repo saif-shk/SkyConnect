@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,8 +6,16 @@ import { Card, CardContent } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Video, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { handleError } from '../utils/errorHandler';
 import { AuthContext } from '../contexts/AuthContext';
+
+const styles = {
+  fontSans: {
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+  },
+  fontSerif: {
+    fontFamily: "'Playfair Display', serif",
+  }
+};
 
 const Authentication = () => {
   const navigate = useNavigate();
@@ -18,14 +26,226 @@ const Authentication = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const canvasRef = useRef(null);
 
   const { handleRegister, handleLogin } = useContext(AuthContext);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setPassword('');
     setError('');
     setMessage('');
   }, [activeTab]);
+
+  useEffect(() => {
+    // Dynamic Google Font Injection
+    const link1 = document.createElement('link');
+    link1.rel = 'preconnect';
+    link1.href = 'https://fonts.googleapis.com';
+    document.head.appendChild(link1);
+
+    const link2 = document.createElement('link');
+    link2.rel = 'preconnect';
+    link2.href = 'https://fonts.gstatic.com';
+    link2.crossOrigin = 'anonymous';
+    document.head.appendChild(link2);
+
+    const link3 = document.createElement('link');
+    link3.rel = 'stylesheet';
+    link3.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap';
+    document.head.appendChild(link3);
+
+    // Canvas 3D Fibonacci Sphere Animation
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    let targetX = width / 2;
+    let targetY = height / 2;
+    let currentX = width / 2;
+    let currentY = height / 2;
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      targetX = width / 2;
+      targetY = height / 2;
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    // Generate 150 points evenly distributed on a unit sphere using the Fibonacci sphere algorithm
+    const count = 150;
+    const points = [];
+    const phi = Math.PI * (3 - Math.sqrt(5)); // Golden angle
+
+    for (let i = 0; i < count; i++) {
+      const y = 1 - (i / (count - 1)) * 2; // y goes from 1 to -1
+      const radiusAtY = Math.sqrt(1 - y * y);
+      const theta = phi * i;
+      const x = Math.cos(theta) * radiusAtY;
+      const z = Math.sin(theta) * radiusAtY;
+      points.push({ x, y, z });
+    }
+
+    // Pre-calculate line connections between particles that are close on the unit sphere
+    const lines = [];
+    const maxUnitDistance = 0.28;
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        const dx = points[i].x - points[j].x;
+        const dy = points[i].y - points[j].y;
+        const dz = points[i].z - points[j].z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < maxUnitDistance) {
+          lines.push({ p1: i, p2: j });
+        }
+      }
+    }
+
+    let rotX = 0;
+    let rotY = 0;
+    let speedX = 0.0012;
+    let speedY = 0.0012;
+    let targetSpeedX = 0.0012;
+    let targetSpeedY = 0.0012;
+
+    const handleMouseMove = (e) => {
+      targetX = e.clientX;
+      targetY = e.clientY;
+      const x = e.clientX - width / 2;
+      const y = e.clientY - height / 2;
+      // Map mouse offset to target speeds (subtle interactive rotation speed)
+      targetSpeedY = (x / width) * 0.015;
+      targetSpeedX = -(y / height) * 0.015;
+    };
+
+    const handleMouseLeave = () => {
+      targetX = width / 2;
+      targetY = height / 2;
+      targetSpeedX = 0.0012;
+      targetSpeedY = 0.0012;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+
+    const render = () => {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, width, height);
+
+      // Sphere radius based on viewport size
+      let radius = Math.min(width, height) * 0.22;
+      if (radius < 100) radius = 100;
+      if (radius > 170) radius = 170;
+
+      // Smoothly lerp center position to the target (mouse) coordinates
+      currentX += (targetX - currentX) * 0.08;
+      currentY += (targetY - currentY) * 0.08;
+
+      // Update rotation angles with easing
+      speedX += (targetSpeedX - speedX) * 0.05;
+      speedY += (targetSpeedY - speedY) * 0.05;
+      rotX += speedX;
+      rotY += speedY;
+
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+
+      // Rotate points in 3D space and project to 2D
+      const projectedPoints = points.map(p => {
+        // Rotate around X axis
+        const y1 = p.y * cosX - p.z * sinX;
+        const z1 = p.z * cosX + p.y * sinX;
+        // Rotate around Y axis
+        const x2 = p.x * cosY - z1 * sinY;
+        const z2 = z1 * cosY + p.x * sinY;
+
+        // Apply radius
+        const px = x2 * radius;
+        const py = y1 * radius;
+        const pz = z2 * radius;
+
+        // Perspective projection
+        const perspective = 300;
+        const scale = perspective / (perspective + pz);
+        const screenX = currentX + px * scale;
+        const screenY = currentY + py * scale;
+
+        return { screenX, screenY, scale, pz };
+      });
+
+      // Draw connection lines first (rendered behind particles)
+      lines.forEach(({ p1, p2 }) => {
+        const pt1 = projectedPoints[p1];
+        const pt2 = projectedPoints[p2];
+
+        // Average depth of endpoints
+        const avgZ = (pt1.pz + pt2.pz) / 2;
+        // Calculate opacity based on depth (closer connections are more visible)
+        const alpha = 0.12 * (1 - (avgZ + radius) / (2 * radius));
+        
+        if (alpha > 0.01) {
+          ctx.beginPath();
+          ctx.moveTo(pt1.screenX, pt1.screenY);
+          ctx.lineTo(pt2.screenX, pt2.screenY);
+          // Faint berry pink connection lines
+          ctx.strokeStyle = `rgba(219, 39, 119, ${alpha * 0.4})`;
+          ctx.lineWidth = 0.45 * ((pt1.scale + pt2.scale) / 2);
+          ctx.stroke();
+        }
+      });
+
+      // Draw particles (colored according to the user palette mapping to depth)
+      projectedPoints.forEach(p => {
+        const alpha = 0.25 + 0.75 * (1 - (p.pz + radius) / (2 * radius));
+        
+        let r, g, b;
+        if (alpha > 0.6) {
+          // Front-half: Interpolate between Berry Pink (219, 39, 119) and Coral Red (244, 63, 94)
+          const t = (alpha - 0.6) / 0.4;
+          r = Math.floor(219 + (244 - 219) * t);
+          g = Math.floor(39 + (63 - 39) * t);
+          b = Math.floor(119 + (94 - 119) * t);
+        } else {
+          // Back-half: Interpolate between Yellow Gold (253, 224, 71) and Berry Pink (219, 39, 119)
+          const t = (alpha - 0.25) / 0.35;
+          const cappedT = Math.max(0, Math.min(1, t));
+          r = Math.floor(253 + (219 - 253) * cappedT);
+          g = Math.floor(224 + (39 - 224) * cappedT);
+          b = Math.floor(71 + (119 - 71) * cappedT);
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.screenX, p.screenY, p.scale * 2.2, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.8})`;
+        ctx.fill();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+      cancelAnimationFrame(animationFrameId);
+      document.head.removeChild(link1);
+      document.head.removeChild(link2);
+      document.head.removeChild(link3);
+    };
+  }, []);
 
   const handleAuth = async () => {
     setError('');
@@ -67,20 +287,45 @@ const Authentication = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{
-      background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #80deea 100%)'
+    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-hidden text-[#2e0714]" style={{
+      ...styles.fontSans,
+      backgroundColor: '#fefdf0', // Pale Ivory / Warm Yellow Cream
     }}>
+      {/* Mesh grid background */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.07]" style={{
+        backgroundImage: 'linear-gradient(rgba(219, 39, 119, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(219, 39, 119, 0.1) 1px, transparent 1px)',
+        backgroundSize: '45px 45px',
+        backgroundPosition: 'center center',
+      }}></div>
+
+      {/* Decorative ambient glowing background circles */}
+      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full filter blur-[130px] opacity-[0.08] pointer-events-none z-0" style={{
+        background: 'radial-gradient(circle, #fde047 0%, transparent 70%)'
+      }}></div>
+      <div className="absolute bottom-[30%] right-[15%] w-[400px] h-[400px] rounded-full filter blur-[150px] opacity-[0.08] pointer-events-none z-0" style={{
+        background: 'radial-gradient(circle, #f43f5e 0%, transparent 70%)'
+      }}></div>
+
+      {/* Rotating 3D Particle Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{ mixBlendMode: 'multiply' }}
+      />
+
       {/* Back Button */}
       <Button
         data-testid="back-to-landing-btn"
         onClick={() => navigate('/')}
         variant="ghost"
-        className="absolute top-6 left-6 gap-2"
+        className="absolute top-6 left-6 gap-2 hover:bg-rose-50"
         style={{
           background: 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(10px)',
-          fontFamily: 'Inter, sans-serif',
-          color: '#0097a7'
+          border: '1px solid rgba(219, 39, 119, 0.15)',
+          color: '#db2777',
+          borderRadius: '9999px',
+          fontWeight: '600',
+          fontFamily: 'Inter, sans-serif'
         }}
       >
         <ArrowLeft className="w-4 h-4" />
@@ -88,43 +333,31 @@ const Authentication = () => {
       </Button>
 
       {/* Auth Card */}
-      <Card className="w-full max-w-md shadow-2xl" style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.5)'
-      }}>
+      <Card className="w-full max-w-md shadow-2xl border border-rose-100/80 bg-white/90 backdrop-blur-xl relative z-10" style={{ borderRadius: '24px' }}>
         <CardContent className="pt-8 pb-8 px-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-4" style={{
-              background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-              boxShadow: '0 10px 30px rgba(0, 151, 167, 0.3)'
-            }}>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4 bg-gradient-to-tr from-[#db2777] to-[#f43f5e] shadow-[0_4px_12px_rgba(219,39,119,0.15)]">
               <Video className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold mb-2" style={{
-              fontFamily: 'Space Grotesk, sans-serif',
-              background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>SkyConnect</h1>
-            <p className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <h1 className="text-3xl font-extrabold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-[#2e0714] via-[#5c0d29] to-[#db2777]">
+              SkyConnect
+            </h1>
+            <p className="text-sm text-stone-500">
               {activeTab === 'signin' ? 'Sign in to your account' : 'Create your account'}
             </p>
           </div>
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-            <TabsList className="grid w-full grid-cols-2" style={{
-              background: 'rgba(0, 151, 167, 0.1)',
-              padding: '4px'
-            }}>
+            <TabsList className="grid w-full grid-cols-2 bg-rose-50 border border-rose-100/50 p-1" style={{ borderRadius: '9999px' }}>
               <TabsTrigger
                 value="signin"
                 data-testid="signin-tab"
                 style={{
-                  fontFamily: 'Inter, sans-serif',
-                  fontWeight: '500'
+                  fontWeight: '700',
+                  borderRadius: '9999px',
+                  fontSize: '13px',
                 }}
               >
                 Sign In
@@ -133,8 +366,9 @@ const Authentication = () => {
                 value="signup"
                 data-testid="signup-tab"
                 style={{
-                  fontFamily: 'Inter, sans-serif',
-                  fontWeight: '500'
+                  fontWeight: '700',
+                  borderRadius: '9999px',
+                  fontSize: '13px',
                 }}
               >
                 Sign Up
@@ -149,8 +383,16 @@ const Authentication = () => {
                   placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="h-12"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  style={{
+                    backgroundColor: '#fafaf9',
+                    borderColor: '#d6d3d1',
+                    color: '#1c1917',
+                    borderRadius: '9999px',
+                    height: '44px',
+                    paddingLeft: '20px',
+                    fontSize: '14px',
+                  }}
+                  className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
                 />
               </div>
 
@@ -162,8 +404,16 @@ const Authentication = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
-                  className="h-12"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  style={{
+                    backgroundColor: '#fafaf9',
+                    borderColor: '#d6d3d1',
+                    color: '#1c1917',
+                    borderRadius: '9999px',
+                    height: '44px',
+                    paddingLeft: '20px',
+                    fontSize: '14px',
+                  }}
+                  className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
                 />
               </div>
             </TabsContent>
@@ -176,8 +426,16 @@ const Authentication = () => {
                   placeholder="Full Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="h-12"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  style={{
+                    backgroundColor: '#fafaf9',
+                    borderColor: '#d6d3d1',
+                    color: '#1c1917',
+                    borderRadius: '9999px',
+                    height: '44px',
+                    paddingLeft: '20px',
+                    fontSize: '14px',
+                  }}
+                  className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
                 />
               </div>
 
@@ -188,8 +446,16 @@ const Authentication = () => {
                   placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="h-12"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  style={{
+                    backgroundColor: '#fafaf9',
+                    borderColor: '#d6d3d1',
+                    color: '#1c1917',
+                    borderRadius: '9999px',
+                    height: '44px',
+                    paddingLeft: '20px',
+                    fontSize: '14px',
+                  }}
+                  className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
                 />
               </div>
 
@@ -201,8 +467,16 @@ const Authentication = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
-                  className="h-12"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  style={{
+                    backgroundColor: '#fafaf9',
+                    borderColor: '#d6d3d1',
+                    color: '#1c1917',
+                    borderRadius: '9999px',
+                    height: '44px',
+                    paddingLeft: '20px',
+                    fontSize: '14px',
+                  }}
+                  className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
                 />
               </div>
             </TabsContent>
@@ -210,16 +484,16 @@ const Authentication = () => {
 
           {/* Error/Success Messages */}
           {error && (
-            <div className="mb-4 p-3 rounded-lg flex items-start gap-2" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700" style={{ fontFamily: 'Inter, sans-serif' }}>{error}</p>
+            <div className="mb-4 p-3 rounded-xl flex items-start gap-2 bg-rose-50 border border-rose-100">
+              <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold text-rose-800 leading-normal">{error}</p>
             </div>
           )}
 
           {message && (
-            <div className="mb-4 p-3 rounded-lg flex items-start gap-2" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
-              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-green-700" style={{ fontFamily: 'Inter, sans-serif' }}>{message}</p>
+            <div className="mb-4 p-3 rounded-xl flex items-start gap-2 bg-emerald-50 border border-emerald-100">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold text-emerald-800 leading-normal">{message}</p>
             </div>
           )}
 
@@ -228,26 +502,31 @@ const Authentication = () => {
             data-testid="auth-submit-btn"
             onClick={handleAuth}
             disabled={isLoading}
-            className="w-full h-12 text-base font-medium"
             style={{
-              background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-              fontFamily: 'Inter, sans-serif',
-              transition: 'all 0.3s ease'
+              backgroundColor: '#f43f5e', // Coral Red
+              color: '#ffffff',
+              borderRadius: '9999px',
+              fontWeight: '700',
+              fontSize: '15px',
+              height: '48px',
+              width: '100%',
+              boxShadow: '0 4px 14px rgba(244, 63, 94, 0.2)',
             }}
+            className="hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
           >
             {isLoading ? 'Please wait...' : activeTab === 'signin' ? 'Sign In' : 'Create Account'}
           </Button>
 
           {/* Footer Links */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <p className="text-sm text-stone-500">
               {activeTab === 'signin' ? (
                 <>
                   New to SkyConnect?{' '}
                   <button
                     onClick={() => setActiveTab('signup')}
-                    className="font-medium"
-                    style={{ color: '#0097a7', background: 'none', border: 'none', cursor: 'pointer' }}
+                    className="font-bold hover:underline transition-all"
+                    style={{ color: '#db2777', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     Get started
                   </button>
@@ -257,8 +536,8 @@ const Authentication = () => {
                   Already have an account?{' '}
                   <button
                     onClick={() => setActiveTab('signin')}
-                    className="font-medium"
-                    style={{ color: '#0097a7', background: 'none', border: 'none', cursor: 'pointer' }}
+                    className="font-bold hover:underline transition-all"
+                    style={{ color: '#db2777', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     Sign in
                   </button>
