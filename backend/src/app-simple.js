@@ -15,7 +15,13 @@ const io = connectToSocket(server);
 
 app.set("port", process.env.PORT || 8000)
 app.use(cors({
-    origin: ["https://skyconnect-frontend.onrender.com", "http://localhost:3000"],
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (origin.startsWith("http://localhost:") || origin.endsWith(".onrender.com")) {
+            return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true
 }));
 app.use(express.json({ limit: "40kb" }));

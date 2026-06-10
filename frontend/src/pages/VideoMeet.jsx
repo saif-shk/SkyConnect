@@ -163,7 +163,7 @@ const VideoMeet = () => {
     if (checkingStatus || isTerminated) return;
     console.log('Initializing socket connection...');
     const backendUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.REACT_APP_BACKEND_URL || 'https://skyconnect-backend2.onrender.com'
+      ? process.env.REACT_APP_BACKEND_URL || 'https://skyconnect-backend-n0x2.onrender.com'
       : 'http://localhost:8000';
     console.log('Environment:', process.env.NODE_ENV);
     console.log('Backend URL:', process.env.REACT_APP_BACKEND_URL);
