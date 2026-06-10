@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { Home, Video, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Home, Video, Calendar, Clock, ArrowRight, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthContext } from '../contexts/AuthContext';
 
@@ -19,6 +19,7 @@ const History = () => {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSummary, setSelectedSummary] = useState(null);
   const { getHistoryOfUser } = useContext(AuthContext);
   const canvasRef = useRef(null);
 
@@ -66,19 +67,12 @@ const History = () => {
     let width = window.innerWidth;
     let height = window.innerHeight;
 
-    let targetX = width / 2;
-    let targetY = height / 2;
-    let currentX = width / 2;
-    let currentY = height / 2;
-
     const handleResize = () => {
       if (!canvas) return;
       width = window.innerWidth;
       height = window.innerHeight;
       canvas.width = width;
       canvas.height = height;
-      targetX = width / 2;
-      targetY = height / 2;
     };
 
     window.addEventListener('resize', handleResize);
@@ -115,30 +109,6 @@ const History = () => {
 
     let rotX = 0;
     let rotY = 0;
-    let speedX = 0.0012;
-    let speedY = 0.0012;
-    let targetSpeedX = 0.0012;
-    let targetSpeedY = 0.0012;
-
-    const handleMouseMove = (e) => {
-      targetX = e.clientX;
-      targetY = e.clientY;
-      const x = e.clientX - width / 2;
-      const y = e.clientY - height / 2;
-      // Map mouse offset to target speeds (subtle interactive rotation speed)
-      targetSpeedY = (x / width) * 0.015;
-      targetSpeedX = -(y / height) * 0.015;
-    };
-
-    const handleMouseLeave = () => {
-      targetX = width / 2;
-      targetY = height / 2;
-      targetSpeedX = 0.0012;
-      targetSpeedY = 0.0012;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseleave', handleMouseLeave);
 
     const render = () => {
       if (!ctx || !canvas) return;
@@ -149,15 +119,8 @@ const History = () => {
       if (radius < 100) radius = 100;
       if (radius > 170) radius = 170;
 
-      // Smoothly lerp center position to the target (mouse) coordinates
-      currentX += (targetX - currentX) * 0.08;
-      currentY += (targetY - currentY) * 0.08;
-
-      // Update rotation angles with easing
-      speedX += (targetSpeedX - speedX) * 0.05;
-      speedY += (targetSpeedY - speedY) * 0.05;
-      rotX += speedX;
-      rotY += speedY;
+      rotX += 0.0015;
+      rotY += 0.0015;
 
       const cosX = Math.cos(rotX);
       const sinX = Math.sin(rotX);
@@ -181,8 +144,8 @@ const History = () => {
         // Perspective projection
         const perspective = 300;
         const scale = perspective / (perspective + pz);
-        const screenX = currentX + px * scale;
-        const screenY = currentY + py * scale;
+        const screenX = (width / 2) + px * scale;
+        const screenY = (height / 2) + py * scale;
 
         return { screenX, screenY, scale, pz };
       });
@@ -241,8 +204,6 @@ const History = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseleave', handleMouseLeave);
       cancelAnimationFrame(animationFrameId);
       document.head.removeChild(link1);
       document.head.removeChild(link2);
@@ -414,23 +375,45 @@ const History = () => {
                       </div>
                     </div>
 
-                    <Button
-                      data-testid={`rejoin-meeting-${meeting._id || meeting.id}-btn`}
-                      onClick={() => handleRejoinMeeting(meeting.meetingCode)}
-                      style={{
-                        backgroundColor: '#db2777', // Berry Pink
-                        color: '#ffffff',
-                        borderRadius: '9999px',
-                        fontWeight: '750',
-                        fontSize: '14px',
-                        height: '42px',
-                        padding: '0 20px',
-                      }}
-                      className="gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform self-start sm:self-center"
-                    >
-                      Rejoin
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-2 self-start sm:self-center">
+                      <Button
+                        onClick={() => setSelectedSummary({
+                          code: meeting.meetingCode,
+                          text: meeting.summary || "No summary was generated for this meeting (either the meeting is still active or no discussions were logged)."
+                        })}
+                        variant="ghost"
+                        style={{
+                          border: '1px solid rgba(219, 39, 119, 0.25)',
+                          color: '#db2777',
+                          borderRadius: '9999px',
+                          fontWeight: '700',
+                          fontSize: '14px',
+                          height: '42px',
+                          padding: '0 20px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.6)'
+                        }}
+                        className="hover:bg-rose-50 transition-colors"
+                      >
+                        Summary
+                      </Button>
+                      <Button
+                        data-testid={`rejoin-meeting-${meeting._id || meeting.id}-btn`}
+                        onClick={() => handleRejoinMeeting(meeting.meetingCode)}
+                        style={{
+                          backgroundColor: '#db2777', // Berry Pink
+                          color: '#ffffff',
+                          borderRadius: '9999px',
+                          fontWeight: '750',
+                          fontSize: '14px',
+                          height: '42px',
+                          padding: '0 20px',
+                        }}
+                        className="gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                      >
+                        Rejoin
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -446,6 +429,71 @@ const History = () => {
           </div>
         )}
       </main>
+
+      {/* Summary Modal */}
+      {selectedSummary && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => setSelectedSummary(null)}
+        >
+          <Card 
+            className="w-full max-w-2xl mx-4 border border-rose-100 bg-white/95 backdrop-blur-xl shadow-2xl"
+            style={{ borderRadius: '24px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardContent className="pt-6 pb-6 px-6">
+              <div className="flex items-center justify-between mb-4 border-b border-rose-100/50 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-[#db2777] border border-rose-100">
+                    <FileText className="w-4.5 h-4.5" />
+                  </div>
+                  <h3 className="text-lg font-extrabold text-[#2e0714]">
+                    Meeting #{selectedSummary.code} Summary
+                  </h3>
+                </div>
+                <Button 
+                  onClick={() => setSelectedSummary(null)} 
+                  variant="ghost" 
+                  size="sm"
+                  className="h-8 w-8 p-0 text-stone-400 hover:text-stone-600 hover:bg-rose-50"
+                  style={{ borderRadius: '9999px' }}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div 
+                className="p-6 rounded-2xl whitespace-pre-wrap max-h-96 overflow-y-auto border border-rose-100 bg-rose-50/20 text-stone-700"
+                style={{ 
+                  fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  fontSize: '0.95rem',
+                  lineHeight: '1.6'
+                }}
+              >
+                {selectedSummary.text}
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={() => setSelectedSummary(null)}
+                  style={{
+                    backgroundColor: '#db2777',
+                    color: '#ffffff',
+                    borderRadius: '9999px',
+                    fontWeight: '700',
+                    height: '40px',
+                    padding: '0 24px'
+                  }}
+                  className="hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                >
+                  Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="relative z-10 px-6 py-8 border-t border-rose-100/40 bg-[#fffdf5] text-center text-xs text-rose-800/60">

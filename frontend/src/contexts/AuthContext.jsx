@@ -22,18 +22,29 @@ export const AuthProvider = ({ children }) => {
 
     const router = useNavigate();
 
-    const handleRegister = async (name, username, password) => {
+    const handleRegister = async (name, username, password, email, otp) => {
         try {
             let request = await client.post("/register", {
                 name: name,
                 username: username,
-                password: password
+                password: password,
+                email: email,
+                otp: otp
             })
 
 
             if (request.status === httpStatus.CREATED) {
                 return request.data.message;
             }
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    const sendEmailOtp = async (email) => {
+        try {
+            let request = await client.post("/send_email_otp", { email });
+            return request.data;
         } catch (err) {
             throw err;
         }
@@ -107,9 +118,22 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
+    const getUserProfile = async () => {
+        try {
+            let request = await client.get("/get_user_profile", {
+                params: {
+                    token: localStorage.getItem("token")
+                }
+            });
+            return request.data;
+        } catch (e) {
+            throw e;
+        }
+    }
+
 
     const data = {
-        userData, setUserData, addToUserHistory, getHistoryOfUser, handleRegister, handleLogin, getMeetingStatus, terminateMeeting
+        userData, setUserData, addToUserHistory, getHistoryOfUser, handleRegister, handleLogin, getMeetingStatus, terminateMeeting, getUserProfile, sendEmailOtp
     }
 
     return (

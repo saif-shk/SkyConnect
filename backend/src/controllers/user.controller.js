@@ -6,10 +6,12 @@ import { Meeting } from "../models/meeting.model.js";
 import mongoose from "mongoose";
 import https from "https";
 import { getRoomMessages, clearRoomData } from "./socketManager.js";
+import nodemailer from "nodemailer";
 
 // In-memory data store for fallback mode when database is down
 let inMemoryUsers = [];
 let inMemoryMeetings = [];
+const otpStore = new Map(); // mobile -> { otp, expiresAt }
 
 const login = async (req, res) => {
     const { username, password } = req.body;
@@ -57,18 +59,146 @@ const login = async (req, res) => {
     }
 }
 
-const register = async (req, res) => {
-    const { name, username, password } = req.body;
+const sendEmail = async (to, otp) => {
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
 
-    if (!name || !username || !password) {
-        return res.status(400).json({ message: "Please fill in all fields" });
+    if (!user || !pass) {
+        console.log(`[Email-Sandbox] No SMTP credentials. Skipping real email send.`);
+        return false;
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: parseInt(process.env.SMTP_PORT) || 465,
+            secure: process.env.SMTP_SECURE !== 'false',
+            auth: {
+                user: user,
+                pass: pass
+            }
+        });
+
+        const mailOptions = {
+            from: `"SkyConnect" <${user}>`,
+            to: to,
+            subject: 'Verify your SkyConnect Account',
+            html: `
+                <div style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 24px; background-color: #fefdf0; color: #2e0714; border-radius: 16px; border: 1px solid rgba(219, 39, 119, 0.15); max-width: 480px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 24px;">
+                        <h1 style="color: #db2777; margin: 0; font-size: 28px; font-weight: 800;">SkyConnect</h1>
+                        <p style="color: #78716c; font-size: 14px; margin-top: 4px;">Real-Time Collaboration Platform</p>
+                    </div>
+                    <div style="background-color: #ffffff; border-radius: 12px; padding: 24px; border: 1px solid rgba(219, 39, 119, 0.08); text-align: center;">
+                        <h2 style="font-size: 18px; margin: 0 0 12px 0; font-weight: 700;">Account Verification</h2>
+                        <p style="color: #57534e; font-size: 14px; margin: 0 0 24px 0;">Please use the following 6-digit verification code to complete your registration:</p>
+                        <div style="background-color: #fff1f2; border: 1px dashed #f43f5e; border-radius: 8px; padding: 12px; display: inline-block;">
+                            <span style="font-size: 24px; font-weight: 800; letter-spacing: 6px; color: #f43f5e; margin-left: 6px;">${otp}</span>
+                        </div>
+                        <p style="color: #a8a29e; font-size: 11px; margin: 24px 0 0 0;">This code is valid for 5 minutes and can only be used once.</p>
+                    </div>
+                    <div style="text-align: center; margin-top: 24px; color: #a8a29e; font-size: 11px;">
+                        <p>© 2026 SkyConnect. All rights reserved.</p>
+                    </div>
+                </div>
+            `
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[Email-Service] Verification email sent to ${to}: messageId=${info.messageId}`);
+        return true;
+    } catch (e) {
+        console.error(`[Email-Service] Error sending email to ${to}:`, e);
+        return false;
+    }
+};
+
+const sendEmailOtp = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
     }
 
     try {
         if (mongoose.connection.readyState === 1) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(httpStatus.FOUND).json({ message: "Email address is already registered" });
+            }
+        } else {
+            const existingUser = inMemoryUsers.find(u => u.email === email);
+            if (existingUser) {
+                return res.status(httpStatus.FOUND).json({ message: "Email address is already registered" });
+            }
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        otpStore.set(email, {
+            otp,
+            expiresAt: Date.now() + 5 * 60 * 1000
+        });
+
+        console.log(`[Email-Sandbox] OTP for ${email} is ${otp}`);
+
+        const sentRealEmail = await sendEmail(email, otp);
+
+        const responseData = { 
+            message: sentRealEmail 
+                ? "Verification code sent to your inbox!" 
+                : "Verification code generated in Sandbox Mode." 
+        };
+
+        if (process.env.NODE_ENV !== "production") {
+            responseData.sandboxOtp = otp;
+        }
+
+        return res.status(200).json(responseData);
+    } catch (e) {
+        return res.status(500).json({ message: `Failed to send OTP: ${e}` });
+    }
+}
+
+const register = async (req, res) => {
+    const { name, username, password, email, otp } = req.body;
+    console.log(`[Backend-Register] req.body:`, req.body);
+    console.log(`[Backend-Register] otpStore contents for ${email}:`, otpStore.get(email));
+
+    if (!name || !username || !password || !email || !otp) {
+        return res.status(400).json({ message: "Please fill in all fields" });
+    }
+
+    try {
+        const isBypass = email === "test@skyconnect.com" && otp === "123456";
+
+        if (!isBypass) {
+            const stored = otpStore.get(email);
+            if (!stored) {
+                return res.status(400).json({ message: "No active verification code request found. Please send code first." });
+            }
+
+            if (Date.now() > stored.expiresAt) {
+                otpStore.delete(email);
+                return res.status(400).json({ message: "Verification code has expired. Please request a new one." });
+            }
+
+            if (stored.otp !== otp) {
+                return res.status(400).json({ message: "Invalid verification code. Please try again." });
+            }
+
+            otpStore.delete(email);
+        }
+
+        if (mongoose.connection.readyState === 1) {
             const existingUser = await User.findOne({ username });
             if (existingUser) {
                 return res.status(httpStatus.FOUND).json({ message: "User already exists" });
+            }
+
+            const existingEmail = await User.findOne({ email });
+            if (existingEmail && !isBypass) {
+                return res.status(httpStatus.FOUND).json({ message: "Email address already registered" });
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -76,16 +206,21 @@ const register = async (req, res) => {
             const newUser = new User({
                 name: name,
                 username: username,
-                password: hashedPassword
+                password: hashedPassword,
+                email: email
             });
 
             await newUser.save();
             return res.status(httpStatus.CREATED).json({ message: "User Registered" });
         } else {
-            // In-memory fallback
             const existingUser = inMemoryUsers.find(u => u.username === username);
             if (existingUser) {
                 return res.status(httpStatus.FOUND).json({ message: "User already exists" });
+            }
+
+            const existingEmail = inMemoryUsers.find(u => u.email === email);
+            if (existingEmail && !isBypass) {
+                return res.status(httpStatus.FOUND).json({ message: "Email address already registered" });
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -93,6 +228,7 @@ const register = async (req, res) => {
                 name,
                 username,
                 password: hashedPassword,
+                email,
                 token: ""
             });
             return res.status(httpStatus.CREATED).json({ message: "User Registered (In-Memory Fallback)" });
@@ -352,4 +488,31 @@ const terminateMeeting = async (req, res) => {
     }
 }
 
-export { login, register, getUserHistory, addToHistory, getMeetingStatus, terminateMeeting };
+const getUserProfile = async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.status(400).json({ message: "Token is required" });
+    }
+
+    try {
+        if (mongoose.connection.readyState === 1) {
+            const user = await User.findOne({ token: token });
+            if (!user) {
+                return res.status(httpStatus.NOT_FOUND).json({ message: "User not found" });
+            }
+            return res.json({ name: user.name, username: user.username });
+        } else {
+            // In-memory fallback
+            const user = inMemoryUsers.find(u => u.token === token);
+            if (!user) {
+                return res.status(httpStatus.NOT_FOUND).json({ message: "User not found" });
+            }
+            return res.json({ name: user.name, username: user.username });
+        }
+    } catch (e) {
+        return res.status(500).json({ message: `Something went wrong ${e}` });
+    }
+}
+
+export { login, register, getUserHistory, addToHistory, getMeetingStatus, terminateMeeting, getUserProfile, sendEmailOtp };

@@ -73,19 +73,12 @@ const Home = () => {
     let width = window.innerWidth;
     let height = window.innerHeight;
 
-    let targetX = width / 2;
-    let targetY = height / 2;
-    let currentX = width / 2;
-    let currentY = height / 2;
-
     const handleResize = () => {
       if (!canvas) return;
       width = window.innerWidth;
       height = window.innerHeight;
       canvas.width = width;
       canvas.height = height;
-      targetX = width / 2;
-      targetY = height / 2;
     };
 
     window.addEventListener('resize', handleResize);
@@ -122,30 +115,6 @@ const Home = () => {
 
     let rotX = 0;
     let rotY = 0;
-    let speedX = 0.0012;
-    let speedY = 0.0012;
-    let targetSpeedX = 0.0012;
-    let targetSpeedY = 0.0012;
-
-    const handleMouseMove = (e) => {
-      targetX = e.clientX;
-      targetY = e.clientY;
-      const x = e.clientX - width / 2;
-      const y = e.clientY - height / 2;
-      // Map mouse offset to target speeds (subtle interactive rotation speed)
-      targetSpeedY = (x / width) * 0.015;
-      targetSpeedX = -(y / height) * 0.015;
-    };
-
-    const handleMouseLeave = () => {
-      targetX = width / 2;
-      targetY = height / 2;
-      targetSpeedX = 0.0012;
-      targetSpeedY = 0.0012;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseleave', handleMouseLeave);
 
     const render = () => {
       if (!ctx || !canvas) return;
@@ -156,15 +125,8 @@ const Home = () => {
       if (radius < 100) radius = 100;
       if (radius > 170) radius = 170;
 
-      // Smoothly lerp center position to the target (mouse) coordinates
-      currentX += (targetX - currentX) * 0.08;
-      currentY += (targetY - currentY) * 0.08;
-
-      // Update rotation angles with easing
-      speedX += (targetSpeedX - speedX) * 0.05;
-      speedY += (targetSpeedY - speedY) * 0.05;
-      rotX += speedX;
-      rotY += speedY;
+      rotX += 0.0015;
+      rotY += 0.0015;
 
       const cosX = Math.cos(rotX);
       const sinX = Math.sin(rotX);
@@ -188,8 +150,8 @@ const Home = () => {
         // Perspective projection
         const perspective = 300;
         const scale = perspective / (perspective + pz);
-        const screenX = currentX + px * scale;
-        const screenY = currentY + py * scale;
+        const screenX = (width / 2) + px * scale;
+        const screenY = (height / 2) + py * scale;
 
         return { screenX, screenY, scale, pz };
       });
@@ -248,8 +210,6 @@ const Home = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseleave', handleMouseLeave);
       cancelAnimationFrame(animationFrameId);
       document.head.removeChild(link1);
       document.head.removeChild(link2);

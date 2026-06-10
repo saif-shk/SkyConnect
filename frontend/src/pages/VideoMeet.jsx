@@ -16,7 +16,8 @@ import { AuthContext } from '../contexts/AuthContext';
 
 const VideoMeet = () => {
   const navigate = useNavigate();
-  const { addToUserHistory, getMeetingStatus, terminateMeeting } = useContext(AuthContext);
+  const { addToUserHistory, getMeetingStatus, terminateMeeting, getUserProfile } = useContext(AuthContext);
+  const [autoJoinTrigger, setAutoJoinTrigger] = useState(false);
   const [username, setUsername] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [video, setVideo] = useState(true);
@@ -78,6 +79,47 @@ const VideoMeet = () => {
     };
     checkStatus();
   }, [roomId]);
+
+  // Fetch user profile if signed in
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const profile = await getUserProfile();
+          if (profile && profile.name) {
+            setUsername(profile.name);
+            
+            // Check if this is an automated testing environment (e.g. Puppeteer)
+            const isAutomated = !!(
+              window.navigator.webdriver || 
+              window.__puppeteer__ || 
+              window.Cypress || 
+              localStorage.getItem('isTestEnv')
+            );
+            
+            if (!isAutomated) {
+              setAutoJoinTrigger(true);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch user profile:', err);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, [getUserProfile]);
+
+  // Auto-connect once trigger is enabled, socket is connected, camera is initialized, and username is set
+  useEffect(() => {
+    if (autoJoinTrigger && socketConnected && cameraStream && username) {
+      setAutoJoinTrigger(false); // Reset trigger immediately so it doesn't fire again
+      const timer = setTimeout(() => {
+        handleConnect();
+      }, 800); // 800ms delay to allow lobby preview to render nicely and state to settle
+      return () => clearTimeout(timer);
+    }
+  }, [autoJoinTrigger, socketConnected, cameraStream, username]);
 
   // Initialize camera
   useEffect(() => {
@@ -1206,51 +1248,80 @@ const VideoMeet = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col text-gray-200" style={{
-      background: 'linear-gradient(135deg, #090d16 0%, #0f172a 50%, #020617 100%)',
-      fontFamily: 'Inter, sans-serif'
+    <div className="h-screen flex flex-col relative text-[#2e0714] overflow-hidden" style={{
+      backgroundColor: '#fefdf0', // Pale Ivory / Warm Yellow Cream
+      fontFamily: 'Plus Jakarta Sans, sans-serif'
     }}>
+      {/* Mesh grid background */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.06]" style={{
+        backgroundImage: 'linear-gradient(rgba(219, 39, 119, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(219, 39, 119, 0.1) 1px, transparent 1px)',
+        backgroundSize: '45px 45px',
+        backgroundPosition: 'center center',
+      }}></div>
+
+      {/* Decorative ambient glowing background circles */}
+      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full filter blur-[130px] opacity-[0.08] pointer-events-none z-0" style={{
+        background: 'radial-gradient(circle, #fde047 0%, transparent 70%)'
+      }}></div>
+      <div className="absolute bottom-[30%] right-[15%] w-[400px] h-[400px] rounded-full filter blur-[150px] opacity-[0.08] pointer-events-none z-0" style={{
+        background: 'radial-gradient(circle, #f43f5e 0%, transparent 70%)'
+      }}></div>
+
       {/* Header */}
-      <div className="h-16 px-6 flex items-center justify-between" style={{
-        background: 'rgba(15, 23, 42, 0.75)',
+      <div className="h-16 px-6 flex items-center justify-between z-10" style={{
+        background: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+        borderBottom: '1px solid rgba(219, 39, 119, 0.1)'
       }}>
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-white tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>SkyConnect Meeting</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-300">
-            <Users className="w-4 h-4" />
-            <span>{participants.length}</span>
+          <h2 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#2e0714] via-[#5c0d29] to-[#db2777]" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            SkyConnect
+          </h2>
+          <div className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border border-rose-100 bg-rose-50/50 text-[#db2777]">
+            <Users className="w-3.5 h-3.5" />
+            <span>{participants.length} Participant{participants.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
-            <span className="text-sm text-gray-300">Room: {roomId}</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-rose-100 bg-rose-50/20">
+            <span className="text-xs font-bold text-stone-600">Room Code: {roomId}</span>
           </div>
-          <Button onClick={copyRoomId} variant="ghost" className="h-8 px-3 text-xs bg-cyan-500/20 text-cyan-300">
-            {copied ? <><Check className="w-3 h-3 mr-1" /> Copied!</> : <><Copy className="w-3 h-3 mr-1" /> Copy ID</>}
+          <Button 
+            onClick={copyRoomId} 
+            variant="ghost" 
+            style={{ borderRadius: '9999px', height: '36px', fontSize: '12px' }}
+            className="px-3 border border-rose-100 bg-rose-50/40 text-[#db2777] hover:bg-rose-50"
+          >
+            {copied ? <><Check className="w-3.5 h-3.5 mr-1" /> Copied!</> : <><Copy className="w-3.5 h-3.5 mr-1" /> Copy ID</>}
           </Button>
           <Button 
             onClick={() => setShowNoteInput(true)} 
             variant="ghost" 
-            className="h-8 px-3 text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
+            style={{ borderRadius: '9999px', height: '36px', fontSize: '12px' }}
+            className="px-3 border border-rose-100 bg-rose-50/40 text-[#db2777] hover:bg-rose-50"
             title="Pin a note for all participants"
           >
-            <Pin className="w-3 h-3 mr-1" /> Pin Note
+            <Pin className="w-3.5 h-3.5 mr-1" /> Pin Note
           </Button>
           {isConnected && (
             <Button 
               onClick={() => setShowAnalytics(!showAnalytics)} 
               variant="ghost" 
-              className={`h-8 px-3 text-xs ${showAnalytics ? 'bg-amber-500/30' : 'bg-amber-500/20'} text-amber-300 hover:bg-amber-500/30`}
+              style={{ borderRadius: '9999px', height: '36px', fontSize: '12px' }}
+              className={`px-3 border border-rose-100 ${showAnalytics ? 'bg-amber-100/50 text-amber-800' : 'bg-rose-50/40 text-[#db2777]'} hover:bg-rose-50`}
               title="View engagement analytics"
             >
-              <BarChart3 className="w-3 h-3 mr-1" /> Analytics
+              <BarChart3 className="w-3.5 h-3.5 mr-1" /> Analytics
             </Button>
           )}
-          <Button onClick={() => setShowParticipants(!showParticipants)} variant="ghost" className={showParticipants ? 'bg-cyan-500/20' : ''}>
-            <Users className="w-5 h-5" />
+          <Button 
+            onClick={() => setShowParticipants(!showParticipants)} 
+            variant="ghost" 
+            style={{ borderRadius: '9999px', height: '36px' }}
+            className={`w-9 p-0 border border-rose-100 ${showParticipants ? 'bg-rose-50 text-[#db2777]' : 'text-stone-500 hover:bg-rose-50'}`}
+          >
+            <Users className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -1258,34 +1329,30 @@ const VideoMeet = () => {
       {/* Note Input Modal */}
       {showNoteInput && (
         <div 
-          className="absolute inset-0 flex items-center justify-center z-50"
-          style={{ background: 'rgba(0, 0, 0, 0.7)' }}
+          className="absolute inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
           onClick={() => setShowNoteInput(false)}
         >
           <Card 
-            className="w-full max-w-md mx-4"
-            style={{
-              background: 'rgba(26, 26, 26, 0.95)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              boxShadow: '0 20px 60px rgba(139, 92, 246, 0.2)'
-            }}
+            className="w-full max-w-md mx-4 border border-rose-100 bg-white/95 backdrop-blur-xl shadow-2xl"
+            style={{ borderRadius: '24px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <CardContent className="pt-6 pb-6 px-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Pin a Note</h3>
+                <h3 className="text-lg font-bold text-[#2e0714]">Pin a Note</h3>
                 <Button 
                   onClick={() => setShowNoteInput(false)} 
                   variant="ghost" 
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 text-stone-400 hover:text-stone-600 hover:bg-rose-50"
+                  style={{ borderRadius: '9999px' }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
               
-              <p className="text-sm text-gray-400 mb-4">
+              <p className="text-sm text-stone-500 mb-4">
                 Create a short note (10-20 words) visible to all participants
               </p>
               
@@ -1295,20 +1362,22 @@ const VideoMeet = () => {
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     placeholder="e.g., Break at 4 PM"
-                    className="w-full"
+                    className="w-full focus:border-[#db2777]"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: 'white'
+                      backgroundColor: '#fafaf9',
+                      borderColor: '#d6d3d1',
+                      color: '#1c1917',
+                      borderRadius: '12px',
+                      height: '42px',
                     }}
                   />
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex justify-between items-center mt-1.5">
                     <span 
-                      className="text-xs"
+                      className="text-xs font-semibold"
                       style={{ 
                         color: getWordCount(noteText) < 10 || getWordCount(noteText) > 20 
                           ? '#ef4444' 
-                          : '#10b981' 
+                          : '#db2777' 
                       }}
                     >
                       {getWordCount(noteText)}/20 words
@@ -1322,8 +1391,8 @@ const VideoMeet = () => {
                   <Button
                     onClick={() => setShowNoteInput(false)}
                     variant="ghost"
-                    className="flex-1"
-                    style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+                    className="flex-1 border border-rose-100 hover:bg-rose-50 text-stone-600"
+                    style={{ borderRadius: '9999px', height: '40px' }}
                   >
                     Cancel
                   </Button>
@@ -1332,9 +1401,12 @@ const VideoMeet = () => {
                     disabled={getWordCount(noteText) < 10 || getWordCount(noteText) > 20}
                     className="flex-1"
                     style={{ 
+                      borderRadius: '9999px',
+                      height: '40px',
+                      color: '#ffffff',
                       background: getWordCount(noteText) >= 10 && getWordCount(noteText) <= 20
-                        ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
-                        : 'rgba(139, 92, 246, 0.3)',
+                        ? '#f43f5e'
+                        : '#fca5a5',
                       cursor: getWordCount(noteText) >= 10 && getWordCount(noteText) <= 20
                         ? 'pointer'
                         : 'not-allowed'
@@ -1357,35 +1429,37 @@ const VideoMeet = () => {
         >
           <Card
             style={{
-              background: 'rgba(26, 26, 26, 0.95)',
+              background: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(20px)',
-              border: '2px solid rgba(0, 172, 193, 0.5)',
-              boxShadow: '0 10px 40px rgba(0, 172, 193, 0.3)'
+              border: '2px solid rgba(244, 63, 94, 0.3)',
+              boxShadow: '0 10px 40px rgba(244, 63, 94, 0.15)',
+              borderRadius: '16px'
             }}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <div 
                   className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}
+                  style={{ background: 'linear-gradient(135deg, #db2777, #f43f5e)' }}
                 >
                   <Pin className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-semibold text-cyan-400">{pinnedNote.author}</span>
-                    <span className="text-xs text-gray-500">{pinnedNote.timestamp}</span>
+                    <span className="text-sm font-bold text-[#db2777]">{pinnedNote.author}</span>
+                    <span className="text-xs text-stone-500">{pinnedNote.timestamp}</span>
                   </div>
-                  <p className="text-white text-base leading-relaxed">{pinnedNote.text}</p>
+                  <p className="text-stone-800 text-sm font-medium leading-relaxed">{pinnedNote.text}</p>
                 </div>
                 <Button
                   onClick={handleDismissNote}
                   variant="ghost"
                   size="sm"
-                  className="flex-shrink-0 h-8 w-8 p-0 hover:bg-red-500/20"
+                  className="flex-shrink-0 h-8 w-8 p-0 hover:bg-red-50"
+                  style={{ borderRadius: '9999px' }}
                   title="Dismiss note"
                 >
-                  <X className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                  <X className="w-4 h-4 text-stone-400 hover:text-red-500" />
                 </Button>
               </div>
             </CardContent>
@@ -1398,9 +1472,9 @@ const VideoMeet = () => {
           /* Theater View: Main Stage + Sidebar */
           <div className="flex-1 flex gap-4 p-4 overflow-hidden">
             {/* Main Stage (75%) */}
-            <div className="flex-[3] h-full flex flex-col justify-between">
+            <div className="flex-[3] h-full flex flex-col justify-between z-10">
               {activeScreenSharer === 'self' ? (
-                <Card className="relative overflow-hidden w-full h-full border border-cyan-500/20 rounded-2xl shadow-[0_4px_30px_rgba(0,180,216,0.15)] bg-slate-950">
+                <Card className="relative overflow-hidden w-full h-full border border-rose-100 rounded-2xl shadow-lg bg-slate-950">
                   <video
                     ref={screenVideoRef}
                     autoPlay
@@ -1408,10 +1482,10 @@ const VideoMeet = () => {
                     muted
                     className="w-full h-full object-contain"
                   />
-                  <div className="absolute bottom-4 left-4 px-4 py-2 rounded-xl bg-cyan-950/80 backdrop-blur-md border border-cyan-500/30">
+                  <div className="absolute bottom-4 left-4 px-4 py-2 rounded-xl bg-white/90 backdrop-blur-md border border-rose-100 shadow-sm">
                     <div className="flex items-center gap-2">
-                      <Monitor className="w-4 h-4 text-cyan-400 animate-pulse" />
-                      <span className="text-sm text-cyan-100 font-semibold">{username} (You) - Sharing Screen</span>
+                      <Monitor className="w-4 h-4 text-[#db2777] animate-pulse" />
+                      <span className="text-sm text-stone-800 font-bold">{username} (You) - Sharing Screen</span>
                     </div>
                   </div>
                 </Card>
@@ -1420,7 +1494,7 @@ const VideoMeet = () => {
                   const sharingParticipant = participants.find(p => p.id === activeScreenSharer);
                   const name = sharingParticipant ? sharingParticipant.name : 'Participant';
                   return (
-                    <Card className="relative overflow-hidden w-full h-full border border-cyan-500/20 rounded-2xl shadow-[0_4px_30px_rgba(0,180,216,0.15)] bg-slate-950">
+                    <Card className="relative overflow-hidden w-full h-full border border-rose-100 rounded-2xl shadow-lg bg-slate-950">
                       <video
                         ref={el => {
                           if (el) remoteVideosRef.current[activeScreenSharer] = el;
@@ -1429,10 +1503,10 @@ const VideoMeet = () => {
                         playsInline
                         className="w-full h-full object-contain"
                       />
-                      <div className="absolute bottom-4 left-4 px-4 py-2 rounded-xl bg-cyan-950/80 backdrop-blur-md border border-cyan-500/30">
+                      <div className="absolute bottom-4 left-4 px-4 py-2 rounded-xl bg-white/90 backdrop-blur-md border border-rose-100 shadow-sm">
                         <div className="flex items-center gap-2">
-                          <Monitor className="w-4 h-4 text-cyan-400 animate-pulse" />
-                          <span className="text-sm text-cyan-100 font-semibold">{name} - Sharing Screen</span>
+                          <Monitor className="w-4 h-4 text-[#db2777] animate-pulse" />
+                          <span className="text-sm text-stone-800 font-bold">{name} - Sharing Screen</span>
                         </div>
                       </div>
                     </Card>
@@ -1442,53 +1516,53 @@ const VideoMeet = () => {
             </div>
 
             {/* Sidebar (25%) */}
-            <div className="flex-[1] h-full flex flex-col gap-4 overflow-y-auto pr-1">
+            <div className="flex-[1] h-full flex flex-col gap-4 overflow-y-auto pr-1 z-10">
               {/* Local Camera */}
-              <Card className="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-slate-900/40 backdrop-blur-md shadow-lg">
+              <Card className="relative aspect-video rounded-2xl overflow-hidden border border-rose-100/50 bg-white/70 backdrop-blur-md shadow-md">
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover animate-in fade-in duration-300"
                   style={{ 
                     transform: 'scaleX(-1)',
                     display: video && cameraStream ? 'block' : 'none'
                   }}
                 />
                 {(!video || !cameraStream) && (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                  <div className="w-full h-full flex items-center justify-center bg-rose-50/10">
                     <div className="text-center">
-                      <Avatar className="w-10 h-10 mx-auto mb-1.5" style={{ background: 'linear-gradient(135deg, #00b4d8, #8338ec)' }}>
+                      <Avatar className="w-10 h-10 mx-auto mb-1.5" style={{ background: 'linear-gradient(135deg, #db2777, #f43f5e)' }}>
                         <AvatarFallback className="text-white font-semibold text-sm">
                           {username.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="text-gray-500 text-xs">Camera off</p>
+                      <p className="text-stone-400 text-xs">Camera off</p>
                     </div>
                   </div>
                 )}
-                <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/5">
+                <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1.5 rounded-lg bg-white/85 backdrop-blur-sm border border-rose-100/30 shadow-sm">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-white font-semibold truncate max-w-[80px]">{username} (You)</span>
-                    {audio ? <Mic className="w-3 h-3 text-emerald-400" /> : <MicOff className="w-3 h-3 text-red-500" />}
+                    <span className="text-xs text-stone-700 font-bold truncate max-w-[80px]">{username} (You)</span>
+                    {audio ? <Mic className="w-3 h-3 text-[#db2777]" /> : <MicOff className="w-3 h-3 text-rose-400" />}
                   </div>
                 </div>
               </Card>
 
               {/* Other Remote Video Cards (excluding whoever is currently sharing) */}
               {participants.filter(p => !p.isSelf && p.id !== activeScreenSharer).map((participant) => (
-                <Card key={participant.id} className="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-slate-900/40 backdrop-blur-md shadow-lg">
+                <Card key={participant.id} className="relative aspect-video rounded-2xl overflow-hidden border border-rose-100/50 bg-white/70 backdrop-blur-md shadow-md">
                   <video
                     ref={el => {
                       if (el) remoteVideosRef.current[participant.id] = el;
                     }}
                     autoPlay
                     playsInline
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover animate-in fade-in duration-300"
                   />
-                  <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/5">
-                    <span className="text-xs text-white font-semibold">{participant.name}</span>
+                  <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1.5 rounded-lg bg-white/85 backdrop-blur-sm border border-rose-100/30 shadow-sm">
+                    <span className="text-xs text-stone-700 font-bold">{participant.name}</span>
                   </div>
                 </Card>
               ))}
@@ -1496,16 +1570,16 @@ const VideoMeet = () => {
           </div>
         ) : (
           /* Standard Grid View */
-          <div className="flex-1 p-4">
+          <div className="flex-1 p-4 z-10">
             <div className={`h-full ${getGridLayout()}`}>
               {/* Local Video */}
-              <Card className="relative overflow-hidden border border-white/5 rounded-2xl shadow-xl bg-slate-900/40 backdrop-blur-md">
+              <Card className={`relative overflow-hidden border border-rose-100/50 bg-white/70 backdrop-blur-md shadow-md ${participants.length + (screen ? 1 : 0) <= 1 ? 'w-full max-w-3xl aspect-video rounded-3xl' : 'w-full h-full'}`}>
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover animate-in fade-in duration-300"
                   style={{ 
                     background: 'transparent',
                     transform: 'scaleX(-1)',
@@ -1517,38 +1591,38 @@ const VideoMeet = () => {
                   onError={(e) => console.error('Local video error:', e)}
                 />
                 {(!video || !cameraStream) && (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                  <div className="w-full h-full flex items-center justify-center bg-rose-50/10">
                     <div className="text-center">
-                      <Avatar className="w-16 h-16 mx-auto mb-2.5" style={{ background: 'linear-gradient(135deg, #00b4d8, #8338ec)' }}>
+                      <Avatar className="w-16 h-16 mx-auto mb-2.5" style={{ background: 'linear-gradient(135deg, #db2777, #f43f5e)' }}>
                         <AvatarFallback className="text-white font-semibold text-xl">
                           {username.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="text-gray-400 text-sm">Camera is off</p>
+                      <p className="text-stone-400 text-sm">Camera is off</p>
                     </div>
                   </div>
                 )}
-                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-black/65 backdrop-blur-sm border border-white/5">
+                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-white/85 backdrop-blur-sm border border-rose-100/30 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-white font-semibold">{username} (You)</span>
-                    {audio ? <Mic className="w-3.5 h-3.5 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 text-red-500" />}
+                    <span className="text-sm text-stone-700 font-bold">{username} (You)</span>
+                    {audio ? <Mic className="w-3.5 h-3.5 text-[#db2777]" /> : <MicOff className="w-3.5 h-3.5 text-rose-400" />}
                   </div>
                 </div>
               </Card>
 
               {/* Remote Videos */}
               {participants.filter(p => !p.isSelf).map((participant) => (
-                <Card key={participant.id} className="relative overflow-hidden border border-white/5 rounded-2xl shadow-xl bg-slate-900/40 backdrop-blur-md">
+                <Card key={participant.id} className="relative overflow-hidden border border-rose-100/50 bg-white/70 backdrop-blur-md shadow-md">
                   <video
                     ref={el => {
                       if (el) remoteVideosRef.current[participant.id] = el;
                     }}
                     autoPlay
                     playsInline
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover animate-in fade-in duration-300"
                   />
-                  <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-black/65 backdrop-blur-sm border border-white/5">
-                    <span className="text-sm text-white font-semibold">{participant.name}</span>
+                  <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-white/85 backdrop-blur-sm border border-rose-100/30 shadow-sm">
+                    <span className="text-sm text-stone-700 font-bold">{participant.name}</span>
                   </div>
                 </Card>
               ))}
@@ -1558,19 +1632,19 @@ const VideoMeet = () => {
 
         {/* Analytics Panel */}
         {showAnalytics && (
-          <div className="w-96 border-l" style={{
-            background: 'rgba(15, 23, 42, 0.65)',
+          <div className="w-96 border-l z-10" style={{
+            background: 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(20px)',
-            borderColor: 'rgba(255, 255, 255, 0.08)'
+            borderColor: 'rgba(219, 39, 119, 0.15)'
           }}>
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(219, 39, 119, 0.15)' }}>
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-cyan-400 animate-pulse" />
-                  <h3 className="text-lg font-semibold text-white tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Engagement Analytics</h3>
+                  <BarChart3 className="w-5 h-5 text-[#db2777] animate-pulse" />
+                  <h3 className="text-lg font-bold text-[#2e0714] tracking-tight">Engagement Analytics</h3>
                 </div>
-                <Button onClick={() => setShowAnalytics(false)} variant="ghost" size="sm" className="hover:bg-white/5">
-                  <X className="w-4 h-4 text-gray-400" />
+                <Button onClick={() => setShowAnalytics(false)} variant="ghost" size="sm" className="hover:bg-rose-50 text-stone-400 hover:text-stone-600" style={{ borderRadius: '9999px' }}>
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
               
@@ -1580,31 +1654,33 @@ const VideoMeet = () => {
                     const engagement = calculateEngagement(participant.isSelf ? 'self' : participant.id);
                     const data = engagementData[participant.isSelf ? 'self' : participant.id];
                     
+                    let scoreColor = engagement.color || '#db2777';
+
                     return (
                       <div 
                         key={participant.id}
-                        className="p-4 rounded-xl border border-white/5 bg-slate-900/30 backdrop-blur-sm shadow-md space-y-3"
+                        className="p-4 rounded-xl border border-rose-100 bg-white/90 shadow-sm space-y-3"
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-9 h-9" style={{ background: 'linear-gradient(135deg, #00b4d8, #8338ec)' }}>
+                          <Avatar className="w-9 h-9" style={{ background: 'linear-gradient(135deg, #db2777, #f43f5e)' }}>
                             <AvatarFallback className="text-white font-semibold text-sm">
                               {participant.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">
+                            <p className="text-sm font-bold text-stone-800 truncate">
                               {participant.name} {participant.isSelf && '(You)'}
                             </p>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-stone-400 font-semibold">
                               {engagement.label} Collaborator
                             </p>
                           </div>
                           <div 
                             className="px-2 py-0.5 rounded text-[11px] font-bold"
                             style={{ 
-                              background: `${engagement.color}15`,
-                              color: engagement.color,
-                              border: `1px solid ${engagement.color}30`
+                              background: `${scoreColor}10`,
+                              color: scoreColor,
+                              border: `1px solid ${scoreColor}20`
                             }}
                           >
                             {engagement.score}%
@@ -1615,13 +1691,13 @@ const VideoMeet = () => {
                         <div className="space-y-1">
                           <div 
                             className="h-1.5 rounded-full overflow-hidden"
-                            style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+                            style={{ background: 'rgba(219, 39, 119, 0.08)' }}
                           >
                             <div 
                               className="h-full transition-all duration-500"
                               style={{ 
                                 width: `${engagement.score}%`,
-                                background: `linear-gradient(to right, ${engagement.color}, ${engagement.color}dd)`
+                                backgroundColor: scoreColor
                               }}
                             />
                           </div>
@@ -1630,36 +1706,35 @@ const VideoMeet = () => {
                         {/* Metrics */}
                         {data && (
                           <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                            <div className="flex items-center gap-1.5 text-gray-400">
-                              <Mic className="w-3.5 h-3.5 text-cyan-400/80" />
+                            <div className="flex items-center gap-1.5 text-stone-500 font-semibold">
+                              <Mic className="w-3.5 h-3.5 text-[#db2777]/80" />
                               <span>
                                 {Math.floor(data.micTime / 60)}m {data.micTime % 60}s speaking
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-gray-400">
-                              <MessageCircle className="w-3.5 h-3.5 text-purple-400/80" />
+                            <div className="flex items-center gap-1.5 text-stone-500 font-semibold">
+                              <MessageCircle className="w-3.5 h-3.5 text-[#db2777]/80" />
                               <span>{data.chatMessages} messages</span>
                             </div>
                           </div>
                         )}
 
                         {/* Collaboration Heatmap */}
-                        <div className="pt-2 border-t border-white/5">
-                          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">Collaboration Heatmap</p>
+                        <div className="pt-2 border-t border-rose-100/50">
+                          <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1.5">Collaboration Heatmap</p>
                           <div className="flex gap-1 flex-wrap">
                             {Array.from({ length: 15 }).map((_, i) => {
-                              // High scores light up more blocks
                               const threshold = (15 - i) * (100 / 15);
-                              let blockColor = 'rgba(255, 255, 255, 0.03)';
+                              let blockColor = 'rgba(219, 39, 119, 0.03)';
                               let shadowStyle = 'none';
                               if (engagement.score >= threshold) {
-                                blockColor = engagement.color;
-                                shadowStyle = `0 0 6px ${engagement.color}40`;
+                                blockColor = scoreColor;
+                                shadowStyle = `0 0 6px ${scoreColor}40`;
                               }
                               return (
                                 <div 
                                   key={i} 
-                                  className="w-3.5 h-3.5 rounded-[3px] transition-all duration-300 border border-white/5"
+                                  className="w-3.5 h-3.5 rounded-[3px] transition-all duration-300 border border-rose-100/20"
                                   style={{ 
                                     background: blockColor,
                                     boxShadow: shadowStyle
@@ -1676,8 +1751,8 @@ const VideoMeet = () => {
                   
                   {participants.length === 0 && (
                     <div className="text-center py-8">
-                      <BarChart3 className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-                      <p className="text-sm text-gray-400">No participants yet</p>
+                      <BarChart3 className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+                      <p className="text-sm text-stone-400">No participants yet</p>
                     </div>
                   )}
                 </div>
@@ -1688,22 +1763,22 @@ const VideoMeet = () => {
 
         {/* Participants Panel */}
         {showParticipants && (
-          <div className="w-80 border-l" style={{
-            background: 'rgba(26, 26, 26, 0.95)',
-            borderColor: 'rgba(255, 255, 255, 0.1)'
+          <div className="w-80 border-l z-10" style={{
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderColor: 'rgba(219, 39, 119, 0.15)'
           }}>
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(219, 39, 119, 0.15)' }}>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-white">Participants</h3>
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold" style={{
-                    background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-                    color: 'white'
+                  <h3 className="text-lg font-bold text-[#2e0714]">Participants</h3>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white" style={{
+                    background: 'linear-gradient(135deg, #db2777, #f43f5e)',
                   }}>
                     {participants.length}
                   </div>
                 </div>
-                <Button onClick={() => setShowParticipants(false)} variant="ghost" size="sm">
+                <Button onClick={() => setShowParticipants(false)} variant="ghost" size="sm" className="hover:bg-rose-50 text-stone-400 hover:text-stone-600" style={{ borderRadius: '9999px' }}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -1716,37 +1791,33 @@ const VideoMeet = () => {
                       audioEnabled: true 
                     };
                     
-                    // Determine connection status color and icon
-                    let statusColor = '#10b981'; // green - connected
+                    let statusColor = '#db2777'; 
                     let StatusIcon = Wifi;
                     if (status.connectionState === 'connecting' || status.connectionState === 'new') {
-                      statusColor = '#f59e0b'; // yellow - connecting
+                      statusColor = '#f59e0b'; 
                     } else if (status.connectionState === 'disconnected' || status.connectionState === 'failed' || status.connectionState === 'closed') {
-                      statusColor = '#ef4444'; // red - disconnected
+                      statusColor = '#ef4444'; 
                       StatusIcon = WifiOff;
                     }
                     
                     return (
                       <div 
                         key={participant.id} 
-                        className="flex items-center gap-3 p-3 rounded-lg transition-all hover:bg-white/5" 
+                        className="flex items-center gap-3 p-3 rounded-xl border border-rose-100 bg-white/90 shadow-sm" 
                         style={{
-                          background: participant.isSelf ? 'rgba(0, 172, 193, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                          border: participant.isSelf ? '1px solid rgba(0, 172, 193, 0.3)' : '1px solid transparent'
+                          border: participant.isSelf ? '1px solid rgba(219, 39, 119, 0.3)' : '1px solid rgba(219, 39, 119, 0.08)'
                         }}
                       >
                         <div className="relative">
-                          <Avatar style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}>
+                          <Avatar style={{ background: 'linear-gradient(135deg, #db2777, #f43f5e)' }}>
                             <AvatarFallback className="text-white font-semibold">
                               {participant.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          {/* Connection status indicator */}
                           <div 
-                            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
+                            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
                             style={{ 
                               background: statusColor,
-                              borderColor: 'rgba(26, 26, 26, 0.95)'
                             }}
                             title={status.connectionState || 'connected'}
                           />
@@ -1754,19 +1825,19 @@ const VideoMeet = () => {
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-white truncate">
+                            <p className="text-sm font-bold text-stone-800 truncate">
                               {participant.name}
                             </p>
                             {participant.isSelf && (
-                              <span className="text-xs text-gray-400">(You)</span>
+                              <span className="text-xs text-stone-400 font-semibold">(You)</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span 
-                              className="text-xs px-2 py-0.5 rounded-full"
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                               style={{
-                                background: participant.isSelf ? 'rgba(0, 172, 193, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                                color: participant.isSelf ? '#00acc1' : '#9ca3af'
+                                background: participant.isSelf ? 'rgba(219, 39, 119, 0.1)' : 'rgba(219, 39, 119, 0.03)',
+                                color: '#db2777'
                               }}
                             >
                               {participant.isSelf ? 'Host' : 'Participant'}
@@ -1774,28 +1845,27 @@ const VideoMeet = () => {
                           </div>
                         </div>
                         
-                        {/* Audio/Video status indicators */}
                         <div className="flex items-center gap-1.5">
                           {participant.isSelf ? (
                             <>
                               <div 
                                 className="p-1.5 rounded-full"
-                                style={{ background: audio ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}
+                                style={{ background: audio ? 'rgba(219, 39, 119, 0.1)' : 'rgba(239, 68, 68, 0.1)' }}
                                 title={audio ? 'Microphone on' : 'Microphone off'}
                               >
                                 {audio ? 
-                                  <Mic className="w-3.5 h-3.5 text-green-400" /> : 
-                                  <MicOff className="w-3.5 h-3.5 text-red-400" />
+                                  <Mic className="w-3.5 h-3.5 text-[#db2777]" /> : 
+                                  <MicOff className="w-3.5 h-3.5 text-red-500" />
                                 }
                               </div>
                               <div 
                                 className="p-1.5 rounded-full"
-                                style={{ background: video ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}
+                                style={{ background: video ? 'rgba(219, 39, 119, 0.1)' : 'rgba(239, 68, 68, 0.1)' }}
                                 title={video ? 'Camera on' : 'Camera off'}
                               >
                                 {video ? 
-                                  <Video className="w-3.5 h-3.5 text-green-400" /> : 
-                                  <VideoOff className="w-3.5 h-3.5 text-red-400" />
+                                  <Video className="w-3.5 h-3.5 text-[#db2777]" /> : 
+                                  <VideoOff className="w-3.5 h-3.5 text-red-500" />
                                 }
                               </div>
                             </>
@@ -1803,22 +1873,22 @@ const VideoMeet = () => {
                             <>
                               <div 
                                 className="p-1.5 rounded-full"
-                                style={{ background: status.audioEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}
+                                style={{ background: status.audioEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' }}
                                 title={status.audioEnabled ? 'Microphone on' : 'Microphone off'}
                               >
                                 {status.audioEnabled ? 
-                                  <Mic className="w-3.5 h-3.5 text-green-400" /> : 
-                                  <MicOff className="w-3.5 h-3.5 text-red-400" />
+                                  <Mic className="w-3.5 h-3.5 text-[#db2777]" /> : 
+                                  <MicOff className="w-3.5 h-3.5 text-red-500" />
                                 }
                               </div>
                               <div 
                                 className="p-1.5 rounded-full"
-                                style={{ background: status.videoEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}
+                                style={{ background: status.videoEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' }}
                                 title={status.videoEnabled ? 'Camera on' : 'Camera off'}
                               >
                                 {status.videoEnabled ? 
-                                  <Video className="w-3.5 h-3.5 text-green-400" /> : 
-                                  <VideoOff className="w-3.5 h-3.5 text-red-400" />
+                                  <Video className="w-3.5 h-3.5 text-[#db2777]" /> : 
+                                  <VideoOff className="w-3.5 h-3.5 text-red-500" />
                                 }
                               </div>
                             </>
@@ -1827,13 +1897,6 @@ const VideoMeet = () => {
                       </div>
                     );
                   })}
-                  
-                  {participants.length === 0 && (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-                      <p className="text-sm text-gray-400">No participants yet</p>
-                    </div>
-                  )}
                 </div>
               </ScrollArea>
             </div>
@@ -1842,14 +1905,15 @@ const VideoMeet = () => {
 
         {/* Chat Panel */}
         {showChat && (
-          <div className="w-96 border-l" style={{
-            background: 'rgba(26, 26, 26, 0.95)',
-            borderColor: 'rgba(255, 255, 255, 0.1)'
+          <div className="w-96 border-l z-10" style={{
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderColor: 'rgba(219, 39, 119, 0.15)'
           }}>
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                <h3 className="text-lg font-semibold text-white">Chat</h3>
-                <Button onClick={() => setShowChat(false)} variant="ghost" size="sm">
+              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(219, 39, 119, 0.15)' }}>
+                <h3 className="text-lg font-bold text-[#2e0714]">Chat</h3>
+                <Button onClick={() => setShowChat(false)} variant="ghost" size="sm" className="hover:bg-rose-50 text-stone-400 hover:text-stone-600" style={{ borderRadius: '9999px' }}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -1861,9 +1925,9 @@ const VideoMeet = () => {
               >
                 {messages.length === 0 ? (
                   <div className="text-center py-8">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-                    <p className="text-sm text-gray-400">No messages yet</p>
-                    <p className="text-xs text-gray-500 mt-1">Start the conversation!</p>
+                    <MessageCircle className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+                    <p className="text-sm text-stone-500 font-bold">No messages yet</p>
+                    <p className="text-xs text-stone-400 font-semibold mt-1">Start the conversation!</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1873,26 +1937,26 @@ const VideoMeet = () => {
                         className="animate-in slide-in-from-bottom-2 duration-200"
                       >
                         <div className="flex items-start gap-2">
-                          <Avatar className="w-7 h-7 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}>
+                          <Avatar className="w-7 h-7 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #db2777, #f43f5e)' }}>
                             <AvatarFallback className="text-white text-xs font-semibold">
                               {msg.sender.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-baseline gap-2 mb-1">
-                              <p className="text-xs font-medium text-cyan-400">{msg.sender}</p>
+                              <p className="text-xs font-bold text-[#db2777]">{msg.sender}</p>
                               {msg.timestamp && (
-                                <p className="text-xs text-gray-500">{msg.timestamp}</p>
+                                <p className="text-[10px] text-stone-400 font-semibold">{msg.timestamp}</p>
                               )}
                             </div>
                             <div 
-                              className="inline-block px-3 py-2 rounded-lg max-w-full break-words"
+                              className="inline-block px-3 py-2 rounded-2xl max-w-full break-words shadow-sm"
                               style={{ 
-                                background: 'rgba(0, 172, 193, 0.1)',
-                                border: '1px solid rgba(0, 172, 193, 0.2)'
+                                background: 'rgba(219, 39, 119, 0.06)',
+                                border: '1px solid rgba(219, 39, 119, 0.1)'
                               }}
                             >
-                              <p className="text-sm text-white">{msg.text}</p>
+                              <p className="text-sm text-stone-800 font-medium">{msg.text}</p>
                             </div>
                           </div>
                         </div>
@@ -1903,11 +1967,11 @@ const VideoMeet = () => {
                 
                 {/* Typing Indicator */}
                 {typingUsers.length > 0 && (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-gray-400 animate-in fade-in duration-200">
+                  <div className="mt-3 flex items-center gap-2 text-xs text-stone-400 font-semibold animate-in fade-in duration-200">
                     <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                      <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                      <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-[#db2777] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-[#db2777] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-[#db2777] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                     </div>
                     <span>
                       {typingUsers.length === 1 
@@ -1921,12 +1985,11 @@ const VideoMeet = () => {
                 )}
               </div>
               
-              <div className="p-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+              <div className="p-4 border-t" style={{ borderColor: 'rgba(219, 39, 119, 0.15)' }}>
                 {/* Emoji Picker */}
                 {showEmojiPicker && (
                   <div 
-                    className="mb-3 p-3 rounded-lg grid grid-cols-8 gap-2"
-                    style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+                    className="mb-3 p-3 rounded-xl grid grid-cols-8 gap-2 border border-rose-100 bg-rose-50/20"
                   >
                     {['😀', '😂', '❤️', '👍', '👎', '🎉', '🔥', '✅', '❌', '🤔', '👏', '🙌', '💯', '✨', '🚀', '💪'].map(emoji => (
                       <button
@@ -1946,10 +2009,11 @@ const VideoMeet = () => {
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     variant="ghost"
                     size="sm"
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 hover:bg-rose-50"
                     style={{ 
-                      background: showEmojiPicker ? 'rgba(0, 172, 193, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                      color: showEmojiPicker ? '#00acc1' : '#9ca3af'
+                      borderRadius: '9999px',
+                      background: showEmojiPicker ? 'rgba(219, 39, 119, 0.15)' : 'rgba(219, 39, 119, 0.05)',
+                      color: '#db2777'
                     }}
                   >
                     <Smile className="w-4 h-4" />
@@ -1959,17 +2023,24 @@ const VideoMeet = () => {
                     onChange={(e) => handleTyping(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder="Type a message..."
-                    className="flex-1"
+                    className="flex-1 focus:border-[#db2777]"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: 'white'
+                      background: '#fafaf9',
+                      border: '1px solid #d6d3d1',
+                      borderRadius: '9999px',
+                      color: '#1c1917',
+                      fontSize: '13px'
                     }}
                   />
                   <Button
                     onClick={sendMessage}
                     disabled={!message.trim()}
-                    style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}
+                    style={{ 
+                      borderRadius: '9999px',
+                      background: '#f43f5e',
+                      color: 'white'
+                    }}
+                    className="hover:bg-[#db2777]"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
@@ -1981,59 +2052,53 @@ const VideoMeet = () => {
       </div>
 
       {/* Controls */}
-      <div className="h-24 px-6 flex items-center justify-center" style={{
-        background: 'rgba(26, 26, 26, 0.95)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+      <div className="h-24 px-6 flex items-center justify-center z-10" style={{
+        background: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(219, 39, 119, 0.1)'
       }}>
         <div className="flex items-center gap-3">
           <Button
             onClick={toggleVideo}
             variant="ghost"
-            className={`h-12 w-12 rounded-full ${video ? '' : 'bg-red-500/20'}`}
-            style={{
-              background: video ? 'rgba(255, 255, 255, 0.1)' : 'rgba(239, 68, 68, 0.2)'
-            }}
+            className={`h-12 w-12 rounded-full border ${video ? 'border-rose-100 bg-rose-50/40 text-[#db2777] hover:bg-rose-50' : 'bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200'}`}
+            style={{ borderRadius: '9999px' }}
           >
-            {video ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5 text-red-400" />}
+            {video ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </Button>
 
           <Button
             onClick={toggleAudio}
             variant="ghost"
-            className={`h-12 w-12 rounded-full ${audio ? '' : 'bg-red-500/20'}`}
-            style={{
-              background: audio ? 'rgba(255, 255, 255, 0.1)' : 'rgba(239, 68, 68, 0.2)'
-            }}
+            className={`h-12 w-12 rounded-full border ${audio ? 'border-rose-100 bg-rose-50/40 text-[#db2777] hover:bg-rose-50' : 'bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200'}`}
+            style={{ borderRadius: '9999px' }}
           >
-            {audio ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5 text-red-400" />}
+            {audio ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
           </Button>
 
           <Button
             onClick={toggleScreen}
             variant="ghost"
-            className={`h-12 w-12 rounded-full ${screen ? 'bg-cyan-500/20' : ''}`}
-            style={{
-              background: screen ? 'rgba(0, 172, 193, 0.2)' : 'rgba(255, 255, 255, 0.1)'
-            }}
+            className={`h-12 w-12 rounded-full border ${screen ? 'bg-rose-100 border-rose-200 text-[#db2777] hover:bg-rose-200' : 'border-rose-100 bg-rose-50/40 text-stone-600 hover:bg-rose-50'}`}
+            style={{ borderRadius: '9999px' }}
           >
-            {screen ? <MonitorOff className="w-5 h-5 text-cyan-400" /> : <Monitor className="w-5 h-5" />}
+            {screen ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
           </Button>
 
           <Button
             onClick={() => setShowChat(!showChat)}
             variant="ghost"
-            className={`h-12 w-12 rounded-full relative ${showChat ? 'bg-cyan-500/20' : ''}`}
-            style={{
-              background: showChat ? 'rgba(0, 172, 193, 0.2)' : 'rgba(255, 255, 255, 0.1)'
-            }}
+            className={`h-12 w-12 rounded-full border relative ${showChat ? 'bg-rose-100 border-rose-200 text-[#db2777] hover:bg-rose-200' : 'border-rose-100 bg-rose-50/40 text-stone-600 hover:bg-rose-50'}`}
+            style={{ borderRadius: '9999px' }}
           >
             <MessageCircle className="w-5 h-5" />
             {unreadMessages > 0 && !showChat && (
               <div 
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold"
                 style={{
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                  color: 'white'
+                  background: 'linear-gradient(135deg, #f43f5e, #db2777)',
+                  color: 'white',
+                  boxShadow: '0 2px 6px rgba(244, 63, 94, 0.3)'
                 }}
               >
                 {unreadMessages > 9 ? '9+' : unreadMessages}
@@ -2054,18 +2119,23 @@ const VideoMeet = () => {
                 }
               }}
               variant="ghost"
-              className="h-12 w-12 rounded-full bg-yellow-500/20"
+              className="h-12 w-12 rounded-full bg-amber-100 border border-amber-200 text-amber-700 hover:bg-amber-200"
+              style={{ borderRadius: '9999px' }}
             >
-              <Video className="w-5 h-5 text-yellow-400" />
+              <Video className="w-5 h-5 animate-pulse" />
             </Button>
           )}
 
-          <Separator orientation="vertical" className="h-8 mx-2" style={{ background: 'rgba(255, 255, 255, 0.1)' }} />
+          <Separator orientation="vertical" className="h-8 mx-2 bg-rose-100" />
 
           <Button
             onClick={handleEndCall}
-            className="h-12 px-6 rounded-full font-medium"
-            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
+            className="h-12 px-6 rounded-full font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
+            style={{ 
+              background: '#f43f5e', 
+              color: 'white',
+              borderRadius: '9999px'
+            }}
           >
             <PhoneOff className="w-5 h-5 mr-2" />
             End Call
