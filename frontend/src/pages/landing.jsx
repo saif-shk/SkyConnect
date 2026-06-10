@@ -105,8 +105,8 @@ const Landing = () => {
       const x = e.clientX - width / 2;
       const y = e.clientY - height / 2;
       // Map mouse offset to target speeds (subtle interactive rotation speed)
-      targetSpeedY = (x / width) * 0.015;
-      targetSpeedX = -(y / height) * 0.015;
+      targetSpeedY = (x / width) * 0.018;
+      targetSpeedX = -(y / height) * 0.018;
     };
 
     const handleMouseLeave = () => {
@@ -177,25 +177,36 @@ const Landing = () => {
           ctx.beginPath();
           ctx.moveTo(pt1.screenX, pt1.screenY);
           ctx.lineTo(pt2.screenX, pt2.screenY);
-          // Subtle indigo lines
-          ctx.strokeStyle = `rgba(129, 140, 248, ${alpha})`;
+          // Faint berry pink connection lines
+          ctx.strokeStyle = `rgba(219, 39, 119, ${alpha * 0.45})`;
           ctx.lineWidth = 0.45 * ((pt1.scale + pt2.scale) / 2);
           ctx.stroke();
         }
       });
 
-      // Draw particles
+      // Draw particles (colored according to the user palette mapping to depth)
       projectedPoints.forEach(p => {
         const alpha = 0.25 + 0.75 * (1 - (p.pz + radius) / (2 * radius));
         
-        // Color interpolation: front is bright cyan, back is faint purple
-        const r = Math.floor(6 + (168 - 6) * (1 - alpha));
-        const g = Math.floor(182 + (85 - 182) * (1 - alpha));
-        const b = Math.floor(212 + (247 - 212) * (1 - alpha));
+        let r, g, b;
+        if (alpha > 0.6) {
+          // Front-half: Interpolate between Berry Pink (219, 39, 119) and Coral Red (244, 63, 94)
+          const t = (alpha - 0.6) / 0.4;
+          r = Math.floor(219 + (244 - 219) * t);
+          g = Math.floor(39 + (63 - 39) * t);
+          b = Math.floor(119 + (94 - 119) * t);
+        } else {
+          // Back-half: Interpolate between Yellow Gold (253, 224, 71) and Berry Pink (219, 39, 119)
+          const t = (alpha - 0.25) / 0.35;
+          const cappedT = Math.max(0, Math.min(1, t));
+          r = Math.floor(253 + (219 - 253) * cappedT);
+          g = Math.floor(224 + (39 - 224) * cappedT);
+          b = Math.floor(71 + (119 - 71) * cappedT);
+        }
 
         ctx.beginPath();
         ctx.arc(p.screenX, p.screenY, p.scale * 2.2, 0, 2 * Math.PI);
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.75})`;
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.8})`;
         ctx.fill();
       });
 
@@ -217,32 +228,32 @@ const Landing = () => {
 
   const features = [
     {
-      icon: <Sparkles className="w-6 h-6 text-amber-400" />,
+      icon: <Sparkles className="w-6 h-6 text-[#db2777]" />,
       title: 'AI Meeting Summaries',
       description: 'Generates structured outcomes, decisions, and action items using Google Gemini AI.'
     },
     {
-      icon: <Mic className="w-6 h-6 text-cyan-400" />,
+      icon: <Mic className="w-6 h-6 text-[#f43f5e]" />,
       title: 'Voice-to-Text Transcription',
       description: 'Translates speech to text, allowing absent invitees to catch up on the discussion.'
     },
     {
-      icon: <Video className="w-6 h-6 text-blue-400" />,
+      icon: <Video className="w-6 h-6 text-[#eab308]" />,
       title: 'HD Video Quality',
       description: 'Crystal-clear video streams powered by advanced WebRTC configurations.'
     },
     {
-      icon: <Monitor className="w-6 h-6 text-indigo-400" />,
+      icon: <Monitor className="w-6 h-6 text-[#db2777]" />,
       title: 'Screen Sharing',
       description: 'Share presentations or windows with attendees in one click.'
     },
     {
-      icon: <Shield className="w-6 h-6 text-emerald-400" />,
+      icon: <Shield className="w-6 h-6 text-[#f43f5e]" />,
       title: 'Secure Rooms',
       description: 'Strict token controls and connection checks protect privacy.'
     },
     {
-      icon: <Zap className="w-6 h-6 text-purple-400" />,
+      icon: <Zap className="w-6 h-6 text-[#eab308]" />,
       title: 'Instant Lobby Start',
       description: 'No software downloads or registrations needed. Join instantly via web browser.'
     }
@@ -270,40 +281,40 @@ const Landing = () => {
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col justify-between overflow-x-hidden text-gray-200" style={{
+    <div className="min-h-screen relative flex flex-col justify-between overflow-x-hidden text-[#2e0714]" style={{
       ...styles.fontSans,
-      background: 'radial-gradient(circle at 50% 50%, #0d1222 0%, #020617 100%)',
+      backgroundColor: '#fefdf0', // Pale Ivory / Warm Yellow Cream
     }}>
       {/* Mesh grid background */}
-      <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.15]" style={{
-        backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px)',
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.07]" style={{
+        backgroundImage: 'linear-gradient(rgba(219, 39, 119, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(219, 39, 119, 0.1) 1px, transparent 1px)',
         backgroundSize: '45px 45px',
         backgroundPosition: 'center center',
       }}></div>
 
       {/* Decorative ambient glowing background circles */}
-      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full filter blur-[130px] opacity-10 pointer-events-none z-0" style={{
-        background: 'radial-gradient(circle, #00f5ff 0%, transparent 70%)'
+      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full filter blur-[130px] opacity-[0.08] pointer-events-none z-0" style={{
+        background: 'radial-gradient(circle, #fde047 0%, transparent 70%)'
       }}></div>
-      <div className="absolute bottom-[30%] right-[15%] w-[400px] h-[400px] rounded-full filter blur-[150px] opacity-10 pointer-events-none z-0" style={{
-        background: 'radial-gradient(circle, #8338ec 0%, transparent 70%)'
+      <div className="absolute bottom-[30%] right-[15%] w-[400px] h-[400px] rounded-full filter blur-[150px] opacity-[0.08] pointer-events-none z-0" style={{
+        background: 'radial-gradient(circle, #f43f5e 0%, transparent 70%)'
       }}></div>
 
       {/* Rotating 3D Particle Canvas */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 pointer-events-none z-0"
-        style={{ mixBlendMode: 'screen' }}
+        style={{ mixBlendMode: 'multiply' }}
       />
 
       {/* Header */}
-      <header className="w-full px-6 py-4 sticky top-0 z-50 border-b border-white/5 backdrop-blur-md bg-slate-950/40">
+      <header className="w-full px-6 py-4 sticky top-0 z-50 border-b border-rose-100/80 backdrop-blur-md bg-white/70">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-tr from-[#db2777] to-[#f43f5e] shadow-[0_4px_12px_rgba(219,39,119,0.15)]">
               <Video className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
+            <span className="text-xl font-bold tracking-tight text-[#2e0714] bg-clip-text text-transparent bg-gradient-to-r from-[#2e0714] via-[#5c0d29] to-[#db2777]">
               SkyConnect
             </span>
           </div>
@@ -312,16 +323,16 @@ const Landing = () => {
             data-testid="signin-btn"
             onClick={() => navigate(isLoggedIn ? '/home' : '/auth')}
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              color: '#ffffff',
+              backgroundColor: 'rgba(219, 39, 119, 0.05)',
+              border: '1px solid rgba(219, 39, 119, 0.15)',
+              color: '#db2777',
               borderRadius: '9999px',
               fontSize: '14px',
-              fontWeight: '500',
+              fontWeight: '600',
               padding: '0 20px',
               height: '38px',
             }}
-            className="hover:bg-white/10 hover:border-white/15 transition-all"
+            className="hover:bg-rose-50 hover:border-rose-300 transition-all animate-fade-in"
           >
             {isLoggedIn ? 'Go to Dashboard' : 'Sign In'}
           </Button>
@@ -331,20 +342,20 @@ const Landing = () => {
       {/* Hero Content */}
       <main className="flex-1 flex flex-col justify-center items-center relative z-10 px-6 pt-24 pb-20 max-w-7xl mx-auto w-full text-center">
         {/* Glow Pill Announcement */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 backdrop-blur-md mb-8 shadow-[0_0_15px_rgba(6,182,212,0.05)]">
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#fffbeb] text-[#db2777] border border-[#fde047] backdrop-blur-md mb-8 shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 animate-pulse text-[#db2777]" />
           <span>Now Powered by Google Gemini AI</span>
         </div>
 
         {/* Hero Title */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.12]">
-          Connect with <span style={styles.fontSerif} className="italic font-normal text-cyan-400 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400">real-time clarity</span>
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#2e0714] max-w-4xl mx-auto leading-[1.12]">
+          Connect with <span style={styles.fontSerif} className="italic font-normal bg-clip-text text-transparent bg-gradient-to-r from-[#db2777] via-[#f43f5e] to-[#eab308]">real-time clarity</span>
           <br className="hidden sm:inline" />
           {' '}that drives teams forward.
         </h1>
 
         {/* Hero Description */}
-        <p className="text-base sm:text-lg md:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto mt-6">
+        <p className="text-base sm:text-lg md:text-xl text-stone-600 leading-relaxed max-w-2xl mx-auto mt-6">
           Experience ultra-low latency video conferencing, screen sharing, and automatic AI meeting summaries—completely in your browser with zero installs.
         </p>
 
@@ -355,14 +366,14 @@ const Landing = () => {
             onClick={handleCreateRoom}
             disabled={isLoading}
             style={{
-              backgroundColor: '#ffffff',
-              color: '#020617',
+              backgroundColor: '#f43f5e', // Vibrant Coral Red
+              color: '#ffffff',
               borderRadius: '9999px',
-              fontWeight: '600',
+              fontWeight: '700',
               fontSize: '15px',
               height: '48px',
               width: '100%',
-              boxShadow: '0 4px 20px rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 4px 18px rgba(244, 63, 94, 0.25)',
             }}
             className="hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
           >
@@ -372,16 +383,17 @@ const Landing = () => {
           <Button
             onClick={() => setShowJoinDrawer(!showJoinDrawer)}
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#ffffff',
+              backgroundColor: '#ffffff',
+              border: '1px solid #db2777',
+              color: '#db2777',
               borderRadius: '9999px',
-              fontWeight: '600',
+              fontWeight: '700',
               fontSize: '15px',
               height: '48px',
               width: '100%',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
             }}
-            className="hover:bg-white/10 hover:border-white/20 transition-all duration-200"
+            className="hover:bg-rose-50/50 hover:border-pink-600 transition-all duration-200"
           >
             Join Meeting
           </Button>
@@ -397,7 +409,7 @@ const Landing = () => {
             marginTop: showJoinDrawer ? '1.5rem' : '0'
           }}
         >
-          <div className="p-5 rounded-2xl border border-white/10 bg-slate-950/40 backdrop-blur-xl space-y-4">
+          <div className="p-5 rounded-2xl border border-rose-100 bg-white shadow-xl shadow-rose-100/40 space-y-4 text-left">
             <div className="flex gap-2">
               <Input
                 data-testid="room-id-input"
@@ -407,22 +419,22 @@ const Landing = () => {
                 onChange={(e) => setRoomId(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
                 style={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  color: '#ffffff',
+                  backgroundColor: '#fafaf9',
+                  borderColor: '#d6d3d1',
+                  color: '#1c1917',
                   borderRadius: '9999px',
                   height: '44px',
                   paddingLeft: '20px',
                   fontSize: '14px',
                 }}
-                className="focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20"
+                className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
               />
               <Button
                 data-testid="join-meeting-btn"
                 onClick={handleJoinRoom}
                 disabled={!roomId.trim() || isLoading}
                 style={{
-                  backgroundColor: '#06b6d4',
+                  backgroundColor: '#db2777', // Berry Pink
                   color: '#ffffff',
                   borderRadius: '9999px',
                   fontWeight: '600',
@@ -430,40 +442,38 @@ const Landing = () => {
                   padding: '0 24px',
                   fontSize: '14px',
                 }}
-                className="hover:bg-cyan-500 transition-colors"
+                className="hover:bg-pink-700 transition-colors"
               >
                 {isLoading ? 'Joining...' : 'Join'}
               </Button>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-stone-500 pl-2">
               Input any valid meeting room ID to join instantly.
             </p>
           </div>
         </div>
 
         {/* Inline No Software Badge */}
-        <div className="flex flex-wrap items-center justify-center gap-6 mt-12 opacity-80">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-white/5 border border-white/5 rounded-full px-4 py-1.5 backdrop-blur-md">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+        <div className="flex flex-wrap items-center justify-center gap-6 mt-12 opacity-95">
+          <div className="flex items-center gap-2 text-xs font-semibold text-stone-600 bg-white border border-rose-100/80 rounded-full px-4.5 py-1.5 shadow-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#f43f5e] shadow-[0_0_8px_rgba(244,63,94,0.4)]"></div>
             <span>No Software Install Required</span>
           </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-white/5 border border-white/5 rounded-full px-4 py-1.5 backdrop-blur-md">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-stone-600 bg-white border border-rose-100/80 rounded-full px-4.5 py-1.5 shadow-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.4)]"></div>
             <span>100% Secure WebRTC Protocols</span>
           </div>
         </div>
       </main>
 
       {/* Features Grid */}
-      <section className="relative z-10 px-6 py-24 border-t border-white/5" style={{
-        background: 'linear-gradient(180deg, rgba(2, 6, 23, 0) 0%, rgba(2, 6, 23, 0.8) 100%)'
-      }}>
+      <section className="relative z-10 px-6 py-24 border-t border-rose-100/60 bg-white/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#2e0714]">
               Everything you need for collaboration.
             </h2>
-            <p className="text-slate-400 text-base sm:text-lg">
+            <p className="text-stone-600 text-base sm:text-lg">
               Powerful tools designed to keep teams aligned and conversations secure.
             </p>
           </div>
@@ -472,22 +482,20 @@ const Landing = () => {
             {features.map((feature, index) => (
               <Card
                 key={index}
-                className="transition-all duration-300 border border-white/5 hover:border-cyan-500/20 hover:shadow-[0_4px_30px_rgba(6,182,212,0.05)] hover:-translate-y-1"
+                className="transition-all duration-300 border border-rose-100 bg-white hover:border-[#db2777]/30 hover:shadow-xl hover:shadow-rose-100/30 hover:-translate-y-1"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.015)',
-                  backdropFilter: 'blur(12px)',
                   borderRadius: '16px',
                 }}
               >
                 <CardContent className="p-8 space-y-4">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 text-cyan-400 shadow-[0_0_15px_rgba(255,255,255,0.02)]">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-[#fefdf0] border border-rose-100/60 shadow-sm animate-pulse-slow">
                     {feature.icon}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white tracking-tight mb-2">
+                    <h3 className="text-lg font-bold text-[#2e0714] tracking-tight mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-sm text-slate-400 leading-relaxed">
+                    <p className="text-sm text-stone-600 leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
@@ -499,23 +507,23 @@ const Landing = () => {
       </section>
 
       {/* Tech Stack / Trust Section */}
-      <section className="relative z-10 px-6 py-16 border-t border-white/5 bg-slate-950/20">
+      <section className="relative z-10 px-6 py-16 border-t border-rose-100/40 bg-[#fffbeb]/20">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#db2777]">
             Engineered on a state-of-the-art tech stack
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6 mt-8 opacity-40 hover:opacity-60 transition-opacity duration-300">
-            <span className="text-sm font-bold tracking-widest text-slate-300">WEBRTC</span>
-            <span className="text-sm font-bold tracking-widest text-slate-300">GOOGLE GEMINI AI</span>
-            <span className="text-sm font-bold tracking-widest text-slate-300">REACT</span>
-            <span className="text-sm font-bold tracking-widest text-slate-300">NODE.JS</span>
-            <span className="text-sm font-bold tracking-widest text-slate-300">MONGODB</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6 mt-8 opacity-70 hover:opacity-95 transition-opacity duration-300">
+            <span className="text-sm font-bold tracking-widest text-[#2e0714]">WEBRTC</span>
+            <span className="text-sm font-bold tracking-widest text-[#db2777]">GOOGLE GEMINI AI</span>
+            <span className="text-sm font-bold tracking-widest text-[#f43f5e]">REACT</span>
+            <span className="text-sm font-bold tracking-widest text-[#eab308]">NODE.JS</span>
+            <span className="text-sm font-bold tracking-widest text-[#2e0714]">MONGODB</span>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 px-6 py-8 border-t border-white/5 bg-slate-950/50 text-center text-xs text-slate-600">
+      <footer className="relative z-10 px-6 py-8 border-t border-rose-100/40 bg-[#fffdf5] text-center text-xs text-rose-800/60">
         <p>© 2026 SkyConnect. Engineered for modern high-performance collaboration.</p>
       </footer>
     </div>
