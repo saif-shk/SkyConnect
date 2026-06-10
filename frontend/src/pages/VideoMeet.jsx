@@ -1033,11 +1033,17 @@ const VideoMeet = () => {
 
   if (checkingStatus) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{
-        background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #80deea 100%)'
+      <div className="min-h-screen relative flex items-center justify-center p-6 text-[#2e0714]" style={{
+        backgroundColor: '#fefdf0',
       }}>
-        <div className="text-center">
-          <p className="text-gray-600 text-lg font-medium animate-pulse" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+        {/* Mesh grid background */}
+        <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.07]" style={{
+          backgroundImage: 'linear-gradient(rgba(219, 39, 119, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(219, 39, 119, 0.1) 1px, transparent 1px)',
+          backgroundSize: '45px 45px',
+          backgroundPosition: 'center center',
+        }}></div>
+        <div className="text-center relative z-10 animate-pulse-slow">
+          <p className="text-lg font-bold" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
             Verifying meeting status...
           </p>
         </div>
@@ -1047,41 +1053,47 @@ const VideoMeet = () => {
 
   if (isTerminated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{
-        background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #80deea 100%)'
+      <div className="min-h-screen relative flex items-center justify-center p-6 text-[#2e0714]" style={{
+        backgroundColor: '#fefdf0',
       }}>
-        <Card className="w-full max-w-2xl shadow-2xl" style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(0, 151, 167, 0.2)',
-          boxShadow: '0 20px 60px rgba(0, 151, 167, 0.15)'
-        }}>
+        {/* Mesh grid background */}
+        <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.07]" style={{
+          backgroundImage: 'linear-gradient(rgba(219, 39, 119, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(219, 39, 119, 0.1) 1px, transparent 1px)',
+          backgroundSize: '45px 45px',
+          backgroundPosition: 'center center',
+        }}></div>
+
+        {/* Ambient glows */}
+        <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] rounded-full filter blur-[120px] opacity-[0.08] pointer-events-none z-0" style={{
+          background: 'radial-gradient(circle, #fde047 0%, transparent 70%)'
+        }}></div>
+        <div className="absolute bottom-[30%] right-[15%] w-[350px] h-[350px] rounded-full filter blur-[130px] opacity-[0.08] pointer-events-none z-0" style={{
+          background: 'radial-gradient(circle, #f43f5e 0%, transparent 70%)'
+        }}></div>
+
+        <Card className="w-full max-w-2xl shadow-2xl border border-rose-100/80 bg-white/90 backdrop-blur-xl relative z-10" style={{ borderRadius: '24px' }}>
           <CardContent className="pt-8 pb-8 px-8">
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{
-                background: 'rgba(239, 68, 68, 0.1)'
-              }}>
-                <VideoOff className="w-8 h-8 text-red-500" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-rose-50 text-rose-600 border border-rose-100">
+                <VideoOff className="w-8 h-8" />
               </div>
-              <h1 className="text-3xl font-bold mb-2 text-cyan-900" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              <h1 className="text-3xl font-extrabold mb-2" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                 Meeting Ended
               </h1>
-              <p className="text-gray-600">This call room has been terminated by the host.</p>
+              <p className="text-sm text-stone-500">This call room has been terminated by the host.</p>
             </div>
 
-            <Separator className="my-6" />
+            <Separator className="my-6" style={{ backgroundColor: 'rgba(219, 39, 119, 0.1)' }} />
 
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-cyan-800" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              <h2 className="text-xl font-extrabold" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                 AI-Generated Meeting Summary
               </h2>
               
               <div 
-                className="p-6 rounded-lg text-gray-800 whitespace-pre-wrap max-h-96 overflow-y-auto"
+                className="p-6 rounded-2xl whitespace-pre-wrap max-h-96 overflow-y-auto border border-rose-100 bg-rose-50/30 text-stone-700"
                 style={{ 
-                  background: 'rgba(0, 151, 167, 0.05)',
-                  border: '1px solid rgba(0, 151, 167, 0.1)',
-                  fontFamily: 'Inter, sans-serif',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif',
                   fontSize: '0.95rem',
                   lineHeight: '1.6'
                 }}
@@ -1093,8 +1105,15 @@ const VideoMeet = () => {
             <div className="mt-8 flex gap-4">
               <Button
                 onClick={() => navigate('/')}
-                className="w-full h-12 text-base font-medium"
-                style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}
+                style={{
+                  backgroundColor: '#db2777', // Berry Pink
+                  color: '#ffffff',
+                  borderRadius: '9999px',
+                  fontWeight: '700',
+                  height: '48px',
+                  width: '100%',
+                }}
+                className="hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
               >
                 Back to Home
               </Button>
@@ -1107,30 +1126,32 @@ const VideoMeet = () => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{
-        background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #80deea 100%)'
+      <div className="min-h-screen relative flex items-center justify-center p-6 text-[#2e0714]" style={{
+        backgroundColor: '#fefdf0',
       }}>
-        <Card className="w-full max-w-md" style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.1)'
-        }}>
+        {/* Mesh grid background */}
+        <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.07]" style={{
+          backgroundImage: 'linear-gradient(rgba(219, 39, 119, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(219, 39, 119, 0.1) 1px, transparent 1px)',
+          backgroundSize: '45px 45px',
+          backgroundPosition: 'center center',
+        }}></div>
+
+        {/* Ambient glows */}
+        <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] rounded-full filter blur-[120px] opacity-[0.08] pointer-events-none z-0" style={{
+          background: 'radial-gradient(circle, #fde047 0%, transparent 70%)'
+        }}></div>
+        <div className="absolute bottom-[30%] right-[15%] w-[350px] h-[350px] rounded-full filter blur-[130px] opacity-[0.08] pointer-events-none z-0" style={{
+          background: 'radial-gradient(circle, #f43f5e 0%, transparent 70%)'
+        }}></div>
+
+        <Card className="w-full max-w-md shadow-2xl border border-rose-100/80 bg-white/90 backdrop-blur-xl relative z-10" style={{ borderRadius: '24px' }}>
           <CardContent className="pt-8 pb-8 px-8">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4" style={{
-                background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-                boxShadow: '0 10px 30px rgba(0, 151, 167, 0.3)'
-              }}>
-                <Video className="w-10 h-10 text-white" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4 bg-gradient-to-tr from-[#db2777] to-[#f43f5e] shadow-[0_4px_12px_rgba(219,39,119,0.15)]">
+                <Video className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-3xl font-bold mb-2" style={{
-                fontFamily: 'Space Grotesk, sans-serif',
-                background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>Join Meeting</h1>
-              <p className="text-gray-600">Enter your name to continue</p>
+              <h1 className="text-3xl font-extrabold mb-1" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Join Meeting</h1>
+              <p className="text-xs text-stone-500">Enter your name to continue</p>
             </div>
 
             <div className="space-y-4">
@@ -1140,26 +1161,42 @@ const VideoMeet = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleConnect()}
-                className="h-12 text-base"
+                style={{
+                  backgroundColor: '#fafaf9',
+                  borderColor: '#d6d3d1',
+                  color: '#1c1917',
+                  borderRadius: '9999px',
+                  height: '44px',
+                  paddingLeft: '20px',
+                  fontSize: '14px',
+                }}
+                className="focus:border-[#db2777] focus:ring-1 focus:ring-rose-500/20"
               />
               <Button
                 onClick={handleConnect}
                 disabled={!username.trim() || !socketConnected}
-                className="w-full h-12 text-base font-medium"
-                style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}
+                style={{
+                  backgroundColor: '#f43f5e', // Coral Red
+                  color: '#ffffff',
+                  borderRadius: '9999px',
+                  fontWeight: '700',
+                  height: '48px',
+                  width: '100%',
+                }}
+                className="hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
               >
                 {!socketConnected ? 'Connecting...' : 'Join Meeting'}
               </Button>
             </div>
 
-            <div className="mt-6 p-4 rounded-lg" style={{ background: 'rgba(0, 151, 167, 0.05)' }}>
+            <div className="mt-6 p-4 rounded-2xl border border-rose-100 bg-rose-50/20">
               <video
                 ref={localVideoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full rounded-lg"
-                style={{ background: '#1a1a1a', aspectRatio: '16/9' }}
+                className="w-full rounded-xl"
+                style={{ background: '#1c1917', aspectRatio: '16/9' }}
               />
             </div>
           </CardContent>
