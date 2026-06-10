@@ -237,3 +237,12 @@ export const connectToSocket = (server) => {
     return io;
 }
 
+export const getRoomMessages = (path) => {
+    return messages[path] || [];
+}
+
+export const clearRoomData = (path) => {
+    delete messages[path];
+    delete connections[path];
+}
+

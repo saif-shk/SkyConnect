@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Video, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { handleError } from '../utils/errorHandler';
+import { AuthContext } from '../contexts/AuthContext';
 
 const Authentication = () => {
   const navigate = useNavigate();
@@ -17,6 +18,14 @@ const Authentication = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const { handleRegister, handleLogin } = useContext(AuthContext);
+
+  React.useEffect(() => {
+    setPassword('');
+    setError('');
+    setMessage('');
+  }, [activeTab]);
 
   const handleAuth = async () => {
     setError('');
@@ -34,26 +43,25 @@ const Authentication = () => {
 
     setIsLoading(true);
 
-    // Simulate API call
     try {
-      setTimeout(() => {
-        if (activeTab === 'signin') {
-          localStorage.setItem('token', 'demo-token');
-          toast.success('Signed in successfully!');
-          navigate('/home');
-        } else {
-          setMessage('Account created successfully! Please sign in.');
-          toast.success('Account created!');
-          setTimeout(() => {
-            setActiveTab('signin');
-            setMessage('');
-          }, 1500);
-        }
-        setIsLoading(false);
-      }, 1000);
-    } catch (error) {
-      handleError(error, 'Authentication failed. Please try again.');
-      setError('Authentication failed. Please try again.');
+      if (activeTab === 'signin') {
+        await handleLogin(username, password);
+        toast.success('Signed in successfully!');
+      } else {
+        const msg = await handleRegister(name, username, password);
+        setMessage(msg || 'Account created successfully! Please sign in.');
+        toast.success('Account created!');
+        setTimeout(() => {
+          setActiveTab('signin');
+          setMessage('');
+        }, 1500);
+      }
+    } catch (err) {
+      console.error(err);
+      const errMsg = err.response?.data?.message || err.message || 'Authentication failed. Please try again.';
+      setError(errMsg);
+      toast.error(errMsg);
+    } finally {
       setIsLoading(false);
     }
   };

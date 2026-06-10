@@ -84,9 +84,32 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
+    const getMeetingStatus = async (meetingCode) => {
+        try {
+            let request = await client.get("/meeting_status", {
+                params: { meetingCode }
+            });
+            return request.data;
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    const terminateMeeting = async (meetingCode) => {
+        try {
+            let request = await client.post("/terminate_meeting", {
+                token: localStorage.getItem("token"),
+                meetingCode
+            });
+            return request.data;
+        } catch (e) {
+            throw e;
+        }
+    }
+
 
     const data = {
-        userData, setUserData, addToUserHistory, getHistoryOfUser, handleRegister, handleLogin
+        userData, setUserData, addToUserHistory, getHistoryOfUser, handleRegister, handleLogin, getMeetingStatus, terminateMeeting
     }
 
     return (

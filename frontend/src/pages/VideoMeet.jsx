@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -12,9 +12,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import io from 'socket.io-client';
+import { AuthContext } from '../contexts/AuthContext';
 
 const VideoMeet = () => {
   const navigate = useNavigate();
+  const { addToUserHistory, getMeetingStatus, terminateMeeting } = useContext(AuthContext);
   const [username, setUsername] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [video, setVideo] = useState(true);
@@ -37,10 +39,14 @@ const VideoMeet = () => {
   const [isHost, setIsHost] = useState(false); // Is current user the host
   const [meetingStartTime, setMeetingStartTime] = useState(null); // Meeting start timestamp
   const [copied, setCopied] = useState(false);
-  const [screenStream, setScreenStream] = useState(null);
-  const [cameraStream, setCameraStream] = useState(null);
   const [isScreenMaximized, setIsScreenMaximized] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [isTerminated, setIsTerminated] = useState(false);
+  const [meetingSummary, setMeetingSummary] = useState(null);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [screenStream, setScreenStream] = useState(null);
+  const [activeScreenSharer, setActiveScreenSharer] = useState(null);
   
   const localVideoRef = useRef(null);
   const screenVideoRef = useRef(null);
@@ -53,8 +59,29 @@ const VideoMeet = () => {
   const chatScrollRef = useRef(null); // Ref for auto-scrolling chat
   const roomId = window.location.pathname.substring(1) || 'demo-room';
 
+  // Check meeting status on mount
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        console.log('Checking meeting status for:', roomId);
+        const data = await getMeetingStatus(roomId);
+        console.log('Meeting status result:', data);
+        if (data && data.status === 'terminated') {
+          setIsTerminated(true);
+          setMeetingSummary(data.summary);
+        }
+      } catch (err) {
+        console.error('Failed to verify meeting status:', err);
+      } finally {
+        setCheckingStatus(false);
+      }
+    };
+    checkStatus();
+  }, [roomId]);
+
   // Initialize camera
   useEffect(() => {
+    if (checkingStatus || isTerminated) return;
     const initCamera = async () => {
       try {
         console.log('Requesting camera access...');
@@ -87,10 +114,11 @@ const VideoMeet = () => {
     };
     
     initCamera();
-  }, []);
+  }, [checkingStatus, isTerminated]);
 
   // Initialize socket
   useEffect(() => {
+    if (checkingStatus || isTerminated) return;
     console.log('Initializing socket connection...');
     const backendUrl = process.env.NODE_ENV === 'production' 
       ? process.env.REACT_APP_BACKEND_URL || 'https://skyconnect-backend2.onrender.com'
@@ -179,6 +207,8 @@ const VideoMeet = () => {
         delete newStatus[userId];
         return newStatus;
       });
+      // Clear active screen sharer if they left
+      setActiveScreenSharer(prev => prev === userId ? null : prev);
     });
 
     socketRef.current.on('signal', (fromUserId, signal) => {
@@ -233,12 +263,12 @@ const VideoMeet = () => {
 
     socketRef.current.on('screen-share-started', (userId) => {
       console.log('Screen sharing started by:', userId);
-      // You can add UI indicators here if needed
+      setActiveScreenSharer(userId);
     });
 
     socketRef.current.on('screen-share-ended', (userId) => {
       console.log('Screen sharing ended by:', userId);
-      // You can add UI indicators here if needed
+      setActiveScreenSharer(prev => prev === userId ? null : prev);
     });
 
     return () => {
@@ -250,7 +280,7 @@ const VideoMeet = () => {
         cameraStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [checkingStatus, isTerminated]);
 
   // Update local video when camera stream changes
   useEffect(() => {
@@ -673,6 +703,15 @@ const VideoMeet = () => {
     socketRef.current.emit('join-call', roomId, username);
     setIsConnected(true);
     toast.success('Connected to meeting');
+
+    if (localStorage.getItem('token')) {
+      try {
+        await addToUserHistory(roomId);
+        console.log('Meeting added to database history');
+      } catch (err) {
+        console.error('Failed to add meeting to history:', err);
+      }
+    }
   };
 
   const toggleVideo = () => {
@@ -755,6 +794,7 @@ const VideoMeet = () => {
           setScreen(false);
           setScreenStream(null);
           screenStreamRef.current = null;
+          setActiveScreenSharer(null);
           
           // Notify other users screen sharing ended
           if (socketRef.current) {
@@ -781,6 +821,7 @@ const VideoMeet = () => {
         };
         
         setScreen(true);
+        setActiveScreenSharer('self');
         toast.info('Screen sharing started');
       } else {
         console.log('📺 Stopping screen share manually');
@@ -815,6 +856,7 @@ const VideoMeet = () => {
         setScreenStream(null);
         screenStreamRef.current = null;
         setScreen(false);
+        setActiveScreenSharer(null);
         toast.info('Screen sharing stopped');
       }
     } catch (error) {
@@ -957,7 +999,17 @@ const VideoMeet = () => {
     }
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
+    if (isHost) {
+      try {
+        console.log('Host ending call - terminating meeting:', roomId);
+        await terminateMeeting(roomId);
+        toast.success('Meeting terminated and summarized');
+      } catch (err) {
+        console.error('Failed to terminate meeting:', err);
+      }
+    }
+    
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
     }
@@ -978,6 +1030,80 @@ const VideoMeet = () => {
     if (total <= 4) return 'grid grid-cols-2 gap-4';
     return 'grid grid-cols-3 gap-4';
   };
+
+  if (checkingStatus) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{
+        background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #80deea 100%)'
+      }}>
+        <div className="text-center">
+          <p className="text-gray-600 text-lg font-medium animate-pulse" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            Verifying meeting status...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTerminated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{
+        background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #80deea 100%)'
+      }}>
+        <Card className="w-full max-w-2xl shadow-2xl" style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(0, 151, 167, 0.2)',
+          boxShadow: '0 20px 60px rgba(0, 151, 167, 0.15)'
+        }}>
+          <CardContent className="pt-8 pb-8 px-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{
+                background: 'rgba(239, 68, 68, 0.1)'
+              }}>
+                <VideoOff className="w-8 h-8 text-red-500" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2 text-cyan-900" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                Meeting Ended
+              </h1>
+              <p className="text-gray-600">This call room has been terminated by the host.</p>
+            </div>
+
+            <Separator className="my-6" />
+
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-cyan-800" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                AI-Generated Meeting Summary
+              </h2>
+              
+              <div 
+                className="p-6 rounded-lg text-gray-800 whitespace-pre-wrap max-h-96 overflow-y-auto"
+                style={{ 
+                  background: 'rgba(0, 151, 167, 0.05)',
+                  border: '1px solid rgba(0, 151, 167, 0.1)',
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '0.95rem',
+                  lineHeight: '1.6'
+                }}
+              >
+                {meetingSummary}
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-4">
+              <Button
+                onClick={() => navigate('/')}
+                className="w-full h-12 text-base font-medium"
+                style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}
+              >
+                Back to Home
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!isConnected) {
     return (
@@ -1043,14 +1169,18 @@ const VideoMeet = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col" style={{ background: '#1a1a1a' }}>
+    <div className="h-screen flex flex-col text-gray-200" style={{
+      background: 'linear-gradient(135deg, #090d16 0%, #0f172a 50%, #020617 100%)',
+      fontFamily: 'Inter, sans-serif'
+    }}>
       {/* Header */}
       <div className="h-16 px-6 flex items-center justify-between" style={{
-        background: 'rgba(26, 26, 26, 0.95)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-white">SkyConnect Meeting</h2>
+          <h2 className="text-lg font-semibold text-white tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>SkyConnect Meeting</h2>
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <Users className="w-4 h-4" />
             <span>{participants.length}</span>
@@ -1072,19 +1202,16 @@ const VideoMeet = () => {
           >
             <Pin className="w-3 h-3 mr-1" /> Pin Note
           </Button>
-          {(() => {
-            console.log('📊 Analytics Button Render Check:', { isHost, isConnected, username });
-            return isHost && (
-              <Button 
-                onClick={() => setShowAnalytics(!showAnalytics)} 
-                variant="ghost" 
-                className={`h-8 px-3 text-xs ${showAnalytics ? 'bg-amber-500/30' : 'bg-amber-500/20'} text-amber-300 hover:bg-amber-500/30`}
-                title="View engagement analytics (Host only)"
-              >
-                <BarChart3 className="w-3 h-3 mr-1" /> Analytics
-              </Button>
-            );
-          })()}
+          {isConnected && (
+            <Button 
+              onClick={() => setShowAnalytics(!showAnalytics)} 
+              variant="ghost" 
+              className={`h-8 px-3 text-xs ${showAnalytics ? 'bg-amber-500/30' : 'bg-amber-500/20'} text-amber-300 hover:bg-amber-500/30`}
+              title="View engagement analytics"
+            >
+              <BarChart3 className="w-3 h-3 mr-1" /> Analytics
+            </Button>
+          )}
           <Button onClick={() => setShowParticipants(!showParticipants)} variant="ghost" className={showParticipants ? 'bg-cyan-500/20' : ''}>
             <Users className="w-5 h-5" />
           </Button>
@@ -1230,116 +1357,183 @@ const VideoMeet = () => {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Video Grid */}
-        <div className="flex-1 p-4">
-          <div className={`h-full ${getGridLayout()}`}>
-            {/* Screen Share */}
-            {screen && (
-              <Card className="relative overflow-hidden" style={{
-                background: 'rgba(40, 40, 40, 0.8)',
-                border: '2px solid #00acc1'
-              }}>
+        {activeScreenSharer ? (
+          /* Theater View: Main Stage + Sidebar */
+          <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+            {/* Main Stage (75%) */}
+            <div className="flex-[3] h-full flex flex-col justify-between">
+              {activeScreenSharer === 'self' ? (
+                <Card className="relative overflow-hidden w-full h-full border border-cyan-500/20 rounded-2xl shadow-[0_4px_30px_rgba(0,180,216,0.15)] bg-slate-950">
+                  <video
+                    ref={screenVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute bottom-4 left-4 px-4 py-2 rounded-xl bg-cyan-950/80 backdrop-blur-md border border-cyan-500/30">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="w-4 h-4 text-cyan-400 animate-pulse" />
+                      <span className="text-sm text-cyan-100 font-semibold">{username} (You) - Sharing Screen</span>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                (() => {
+                  const sharingParticipant = participants.find(p => p.id === activeScreenSharer);
+                  const name = sharingParticipant ? sharingParticipant.name : 'Participant';
+                  return (
+                    <Card className="relative overflow-hidden w-full h-full border border-cyan-500/20 rounded-2xl shadow-[0_4px_30px_rgba(0,180,216,0.15)] bg-slate-950">
+                      <video
+                        ref={el => {
+                          if (el) remoteVideosRef.current[activeScreenSharer] = el;
+                        }}
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-contain"
+                      />
+                      <div className="absolute bottom-4 left-4 px-4 py-2 rounded-xl bg-cyan-950/80 backdrop-blur-md border border-cyan-500/30">
+                        <div className="flex items-center gap-2">
+                          <Monitor className="w-4 h-4 text-cyan-400 animate-pulse" />
+                          <span className="text-sm text-cyan-100 font-semibold">{name} - Sharing Screen</span>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })()
+              )}
+            </div>
+
+            {/* Sidebar (25%) */}
+            <div className="flex-[1] h-full flex flex-col gap-4 overflow-y-auto pr-1">
+              {/* Local Camera */}
+              <Card className="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-slate-900/40 backdrop-blur-md shadow-lg">
                 <video
-                  ref={screenVideoRef}
+                  ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
                   className="w-full h-full object-cover"
-                  style={{ background: '#2a2a2a' }}
+                  style={{ 
+                    transform: 'scaleX(-1)',
+                    display: video && cameraStream ? 'block' : 'none'
+                  }}
                 />
-                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg" style={{
-                  background: 'rgba(0, 172, 193, 0.8)'
-                }}>
-                  <div className="flex items-center gap-2">
-                    <Monitor className="w-3 h-3 text-white" />
-                    <span className="text-sm text-white font-medium">{username} - Screen</span>
+                {(!video || !cameraStream) && (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                    <div className="text-center">
+                      <Avatar className="w-10 h-10 mx-auto mb-1.5" style={{ background: 'linear-gradient(135deg, #00b4d8, #8338ec)' }}>
+                        <AvatarFallback className="text-white font-semibold text-sm">
+                          {username.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="text-gray-500 text-xs">Camera off</p>
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-white font-semibold truncate max-w-[80px]">{username} (You)</span>
+                    {audio ? <Mic className="w-3 h-3 text-emerald-400" /> : <MicOff className="w-3 h-3 text-red-500" />}
                   </div>
                 </div>
               </Card>
-            )}
 
-            {/* Local Video */}
-            <Card className="relative overflow-hidden" style={{
-              background: 'rgba(40, 40, 40, 0.8)',
-              border: '2px solid #00acc1'
-            }}>
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-                style={{ 
-                  background: '#2a2a2a',
-                  transform: 'scaleX(-1)',
-                  display: video && cameraStream ? 'block' : 'none'
-                }}
-                onLoadedData={() => console.log('Local video data loaded')}
-                onCanPlay={() => console.log('Local video can play')}
-                onPlay={() => console.log('Local video started playing')}
-                onError={(e) => console.error('Local video error:', e)}
-              />
-              {(!video || !cameraStream) && (
-                <div className="w-full h-full flex items-center justify-center" style={{ background: '#2a2a2a' }}>
-                  <div className="text-center">
-                    <Avatar className="w-16 h-16 mx-auto mb-2" style={{ background: 'linear-gradient(135deg, #0097a7, #00acc1)' }}>
-                      <AvatarFallback className="text-white font-semibold text-xl">
-                        {username.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="text-gray-400 text-sm">Camera is off</p>
+              {/* Other Remote Video Cards (excluding whoever is currently sharing) */}
+              {participants.filter(p => !p.isSelf && p.id !== activeScreenSharer).map((participant) => (
+                <Card key={participant.id} className="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-slate-900/40 backdrop-blur-md shadow-lg">
+                  <video
+                    ref={el => {
+                      if (el) remoteVideosRef.current[participant.id] = el;
+                    }}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/5">
+                    <span className="text-xs text-white font-semibold">{participant.name}</span>
                   </div>
-                </div>
-              )}
-              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg" style={{
-                background: 'rgba(0, 172, 193, 0.8)'
-              }}>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-white font-medium">{username} (You)</span>
-                  {audio ? <Mic className="w-3 h-3 text-white" /> : <MicOff className="w-3 h-3 text-red-400" />}
-                </div>
-              </div>
-            </Card>
-
-            {/* Remote Videos */}
-            {participants.filter(p => !p.isSelf).map((participant) => (
-              <Card key={participant.id} className="relative overflow-hidden" style={{
-                background: 'rgba(40, 40, 40, 0.8)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* Standard Grid View */
+          <div className="flex-1 p-4">
+            <div className={`h-full ${getGridLayout()}`}>
+              {/* Local Video */}
+              <Card className="relative overflow-hidden border border-white/5 rounded-2xl shadow-xl bg-slate-900/40 backdrop-blur-md">
                 <video
-                  ref={el => {
-                    if (el) remoteVideosRef.current[participant.id] = el;
-                  }}
+                  ref={localVideoRef}
                   autoPlay
                   playsInline
+                  muted
                   className="w-full h-full object-cover"
-                  style={{ background: '#2a2a2a' }}
+                  style={{ 
+                    background: 'transparent',
+                    transform: 'scaleX(-1)',
+                    display: video && cameraStream ? 'block' : 'none'
+                  }}
+                  onLoadedData={() => console.log('Local video data loaded')}
+                  onCanPlay={() => console.log('Local video can play')}
+                  onPlay={() => console.log('Local video started playing')}
+                  onError={(e) => console.error('Local video error:', e)}
                 />
-                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg" style={{
-                  background: 'rgba(0, 0, 0, 0.6)'
-                }}>
-                  <span className="text-sm text-white font-medium">{participant.name}</span>
+                {(!video || !cameraStream) && (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                    <div className="text-center">
+                      <Avatar className="w-16 h-16 mx-auto mb-2.5" style={{ background: 'linear-gradient(135deg, #00b4d8, #8338ec)' }}>
+                        <AvatarFallback className="text-white font-semibold text-xl">
+                          {username.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="text-gray-400 text-sm">Camera is off</p>
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-black/65 backdrop-blur-sm border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-white font-semibold">{username} (You)</span>
+                    {audio ? <Mic className="w-3.5 h-3.5 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 text-red-500" />}
+                  </div>
                 </div>
               </Card>
-            ))}
-          </div>
-        </div>
 
-        {/* Analytics Panel (Host Only) */}
-        {showAnalytics && isHost && (
+              {/* Remote Videos */}
+              {participants.filter(p => !p.isSelf).map((participant) => (
+                <Card key={participant.id} className="relative overflow-hidden border border-white/5 rounded-2xl shadow-xl bg-slate-900/40 backdrop-blur-md">
+                  <video
+                    ref={el => {
+                      if (el) remoteVideosRef.current[participant.id] = el;
+                    }}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-black/65 backdrop-blur-sm border border-white/5">
+                    <span className="text-sm text-white font-semibold">{participant.name}</span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Analytics Panel */}
+        {showAnalytics && (
           <div className="w-96 border-l" style={{
-            background: 'rgba(26, 26, 26, 0.95)',
-            borderColor: 'rgba(255, 255, 255, 0.1)'
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(20px)',
+            borderColor: 'rgba(255, 255, 255, 0.08)'
           }}>
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-amber-400" />
-                  <h3 className="text-lg font-semibold text-white">Engagement Analytics</h3>
+                  <BarChart3 className="w-5 h-5 text-cyan-400 animate-pulse" />
+                  <h3 className="text-lg font-semibold text-white tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Engagement Analytics</h3>
                 </div>
-                <Button onClick={() => setShowAnalytics(false)} variant="ghost" size="sm">
-                  <X className="w-4 h-4" />
+                <Button onClick={() => setShowAnalytics(false)} variant="ghost" size="sm" className="hover:bg-white/5">
+                  <X className="w-4 h-4 text-gray-400" />
                 </Button>
               </div>
               
@@ -1352,31 +1546,28 @@ const VideoMeet = () => {
                     return (
                       <div 
                         key={participant.id}
-                        className="p-3 rounded-lg"
-                        style={{ 
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.05)'
-                        }}
+                        className="p-4 rounded-xl border border-white/5 bg-slate-900/30 backdrop-blur-sm shadow-md space-y-3"
                       >
-                        <div className="flex items-center gap-3 mb-3">
-                          <Avatar className="w-10 h-10" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                            <AvatarFallback className="text-white font-semibold">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-9 h-9" style={{ background: 'linear-gradient(135deg, #00b4d8, #8338ec)' }}>
+                            <AvatarFallback className="text-white font-semibold text-sm">
                               {participant.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-white">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">
                               {participant.name} {participant.isSelf && '(You)'}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {engagement.label} Engagement
+                              {engagement.label} Collaborator
                             </p>
                           </div>
                           <div 
-                            className="px-2 py-1 rounded text-xs font-bold"
+                            className="px-2 py-0.5 rounded text-[11px] font-bold"
                             style={{ 
-                              background: `${engagement.color}20`,
-                              color: engagement.color
+                              background: `${engagement.color}15`,
+                              color: engagement.color,
+                              border: `1px solid ${engagement.color}30`
                             }}
                           >
                             {engagement.score}%
@@ -1384,10 +1575,10 @@ const VideoMeet = () => {
                         </div>
                         
                         {/* Engagement Bar */}
-                        <div className="mb-2">
+                        <div className="space-y-1">
                           <div 
-                            className="h-2 rounded-full overflow-hidden"
-                            style={{ background: 'rgba(255, 255, 255, 0.1)' }}
+                            className="h-1.5 rounded-full overflow-hidden"
+                            style={{ background: 'rgba(255, 255, 255, 0.08)' }}
                           >
                             <div 
                               className="h-full transition-all duration-500"
@@ -1401,19 +1592,47 @@ const VideoMeet = () => {
                         
                         {/* Metrics */}
                         {data && (
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex items-center gap-1 text-gray-400">
-                              <Mic className="w-3 h-3" />
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                            <div className="flex items-center gap-1.5 text-gray-400">
+                              <Mic className="w-3.5 h-3.5 text-cyan-400/80" />
                               <span>
-                                {Math.floor(data.micTime / 60)}m {data.micTime % 60}s
+                                {Math.floor(data.micTime / 60)}m {data.micTime % 60}s speaking
                               </span>
                             </div>
-                            <div className="flex items-center gap-1 text-gray-400">
-                              <MessageCircle className="w-3 h-3" />
+                            <div className="flex items-center gap-1.5 text-gray-400">
+                              <MessageCircle className="w-3.5 h-3.5 text-purple-400/80" />
                               <span>{data.chatMessages} messages</span>
                             </div>
                           </div>
                         )}
+
+                        {/* Collaboration Heatmap */}
+                        <div className="pt-2 border-t border-white/5">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">Collaboration Heatmap</p>
+                          <div className="flex gap-1 flex-wrap">
+                            {Array.from({ length: 15 }).map((_, i) => {
+                              // High scores light up more blocks
+                              const threshold = (15 - i) * (100 / 15);
+                              let blockColor = 'rgba(255, 255, 255, 0.03)';
+                              let shadowStyle = 'none';
+                              if (engagement.score >= threshold) {
+                                blockColor = engagement.color;
+                                shadowStyle = `0 0 6px ${engagement.color}40`;
+                              }
+                              return (
+                                <div 
+                                  key={i} 
+                                  className="w-3.5 h-3.5 rounded-[3px] transition-all duration-300 border border-white/5"
+                                  style={{ 
+                                    background: blockColor,
+                                    boxShadow: shadowStyle
+                                  }}
+                                  title={`Activity segment ${i + 1}`}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}

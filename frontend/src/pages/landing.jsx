@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
-import { Video, Users, Monitor, Shield, Zap, Globe } from 'lucide-react';
+import { Video, Users, Monitor, Shield, Zap, Globe, Sparkles, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Landing = () => {
@@ -13,34 +13,34 @@ const Landing = () => {
 
   const features = [
     {
-      icon: <Video className="w-6 h-6" />,
+      icon: <Sparkles className="w-6 h-6 text-amber-400" />,
+      title: 'AI Meeting Summaries',
+      description: 'Generates structured outcomes, decisions, and action items using Google Gemini AI.'
+    },
+    {
+      icon: <Mic className="w-6 h-6 text-cyan-400" />,
+      title: 'Voice-to-Text Transcription',
+      description: 'Translates speech to text, allowing absent invitees to catch up on the discussion.'
+    },
+    {
+      icon: <Video className="w-6 h-6 text-blue-400" />,
       title: 'HD Video Quality',
-      description: 'Crystal-clear video with adaptive streaming technology'
+      description: 'Crystal-clear video streams powered by advanced WebRTC configurations.'
     },
     {
-      icon: <Monitor className="w-6 h-6" />,
+      icon: <Monitor className="w-6 h-6 text-indigo-400" />,
       title: 'Screen Sharing',
-      description: 'Share your screen seamlessly with participants'
+      description: 'Share presentations or windows with attendees in one click.'
     },
     {
-      icon: <Users className="w-6 h-6" />,
-      title: 'Unlimited Participants',
-      description: 'Host meetings with unlimited attendees'
+      icon: <Shield className="w-6 h-6 text-emerald-400" />,
+      title: 'Secure Rooms',
+      description: 'Strict token controls and connection checks protect privacy.'
     },
     {
-      icon: <Shield className="w-6 h-6" />,
-      title: 'End-to-End Encryption',
-      description: 'Your conversations are private and secure'
-    },
-    {
-      icon: <Zap className="w-6 h-6" />,
-      title: 'Instant Start',
-      description: 'No downloads required. Start meeting instantly'
-    },
-    {
-      icon: <Globe className="w-6 h-6" />,
-      title: 'Works Everywhere',
-      description: 'Access from any device, anywhere in the world'
+      icon: <Zap className="w-6 h-6 text-purple-400" />,
+      title: 'Instant Lobby Start',
+      description: 'No software downloads or registrations needed. Join instantly via web browser.'
     }
   ];
 
@@ -66,33 +66,40 @@ const Landing = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{
-      background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 30%, #80deea 60%, #4dd0e1 100%)'
+    <div className="min-h-screen relative overflow-hidden text-gray-200" style={{
+      background: 'linear-gradient(135deg, #090d16 0%, #0b1329 50%, #030712 100%)',
+      fontFamily: 'Inter, sans-serif'
     }}>
+      {/* Decorative background glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full filter blur-[120px] opacity-15 pointer-events-none" style={{
+        background: 'radial-gradient(circle, #00b4d8 0%, transparent 70%)'
+      }}></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full filter blur-[120px] opacity-15 pointer-events-none" style={{
+        background: 'radial-gradient(circle, #8338ec 0%, transparent 70%)'
+      }}></div>
+
       {/* Header */}
-      <header className="px-6 py-4">
+      <header className="px-6 py-5 relative z-10 border-b border-gray-800/40" style={{
+        background: 'rgba(9, 13, 22, 0.4)',
+        backdropFilter: 'blur(8px)'
+      }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{
-              background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-              boxShadow: '0 4px 12px rgba(0, 151, 167, 0.3)'
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{
+              background: 'linear-gradient(135deg, #00b4d8, #0077b6)',
+              boxShadow: '0 4px 15px rgba(0, 180, 216, 0.3)'
             }}>
               <Video className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold" style={{
-              fontFamily: 'Space Grotesk, sans-serif',
-              color: '#0097a7'
+            <span className="text-2xl font-bold tracking-tight text-white" style={{
+              fontFamily: 'Space Grotesk, sans-serif'
             }}>SkyConnect</span>
           </div>
           <Button
             data-testid="signin-btn"
             onClick={() => navigate('/auth')}
             variant="ghost"
-            style={{
-              fontFamily: 'Inter, sans-serif',
-              color: '#0097a7',
-              fontWeight: '500'
-            }}
+            className="hover:bg-white/5 text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
           >
             Sign In
           </Button>
@@ -100,79 +107,78 @@ const Landing = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="px-6 pt-12 pb-20">
+      <section className="px-6 pt-16 pb-24 relative z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: Content */}
-            <div className="space-y-6">
-              <h1 className="text-5xl lg:text-6xl font-bold leading-tight" style={{
-                fontFamily: 'Space Grotesk, sans-serif',
-                color: '#006064'
-              }}>
-                Professional Video
-                <br />
-                Conferencing
-              </h1>
-              <p className="text-xl text-gray-700" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Connect with your team from anywhere. Crystal-clear HD calls,
-                screen sharing, and real-time collaboration.
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Now Powered by Google Gemini AI</span>
+                </div>
+                <h1 className="text-5xl lg:text-6xl font-bold leading-tight text-white tracking-tight" style={{
+                  fontFamily: 'Space Grotesk, sans-serif'
+                }}>
+                  Next-Gen Video 
+                  <br />
+                  <span style={{
+                    background: 'linear-gradient(to right, #00f5ff, #8338ec)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>Conferencing</span>
+                </h1>
+              </div>
+              <p className="text-lg text-gray-400 leading-relaxed max-w-lg">
+                Connect and collaborate seamlessly with crystal-clear calls, real-time screen sharing, 
+                and automatic AI meeting minutes delivered straight to your dashboard.
               </p>
 
-              <div className="flex flex-wrap gap-4 pt-4">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{
-                  background: 'rgba(255, 255, 255, 0.6)',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#00c853' }}></div>
-                  <span className="text-sm font-medium text-gray-700">No sign-up required</span>
+              <div className="flex flex-wrap gap-4 pt-2">
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-gray-800 bg-gray-900/40 backdrop-blur-md">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+                  <span className="text-sm font-medium text-gray-300">No software required</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{
-                  background: 'rgba(255, 255, 255, 0.6)',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#00c853' }}></div>
-                  <span className="text-sm font-medium text-gray-700">100% browser-based</span>
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-gray-800 bg-gray-900/40 backdrop-blur-md">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+                  <span className="text-sm font-medium text-gray-300">100% browser-based</span>
                 </div>
               </div>
             </div>
 
             {/* Right: Meeting Card */}
-            <Card className="shadow-2xl" style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.5)'
+            <Card className="shadow-2xl overflow-hidden border border-white/5" style={{
+              background: 'rgba(15, 23, 42, 0.45)',
+              backdropFilter: 'blur(24px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
             }}>
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-6" style={{
-                  fontFamily: 'Space Grotesk, sans-serif',
-                  color: '#006064'
-                }}>Start Your Meeting</h2>
+              <CardContent className="p-8 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight" style={{
+                    fontFamily: 'Space Grotesk, sans-serif'
+                  }}>Start Collaborating</h2>
+                  <p className="text-sm text-gray-400 mt-1">Create a secure room or enter a meeting ID to join.</p>
+                </div>
 
                 <div className="space-y-4">
                   <Button
                     data-testid="create-meeting-btn"
                     onClick={handleCreateRoom}
                     disabled={isLoading}
-                    className="w-full h-12 text-base font-medium"
+                    className="w-full h-12 text-base font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5 active:translate-y-0"
                     style={{
-                      background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-                      fontFamily: 'Inter, sans-serif',
-                      transition: 'all 0.3s ease'
+                      background: 'linear-gradient(135deg, #00b4d8, #0077b6)',
+                      boxShadow: '0 4px 15px rgba(0, 180, 216, 0.25)'
                     }}
                   >
-                    {isLoading ? 'Creating...' : 'Create New Meeting'}
+                    {isLoading ? 'Creating Room...' : 'Create New Meeting'}
                   </Button>
 
-                  <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}></div>
-                    </div>
-                    <div className="relative flex justify-center">
-                      <span className="px-4 text-sm text-gray-500" style={{
-                        background: 'rgba(255, 255, 255, 0.95)',
-                        fontFamily: 'Inter, sans-serif'
-                      }}>or join existing</span>
-                    </div>
+                  <div className="relative flex items-center justify-center py-2">
+                    <div className="absolute w-full border-t border-gray-800"></div>
+                    <span className="relative px-3 text-xs uppercase tracking-wider text-gray-500 bg-[#0f172a] rounded">
+                      or join existing
+                    </span>
                   </div>
 
                   <div className="space-y-3">
@@ -183,8 +189,7 @@ const Landing = () => {
                       value={roomId}
                       onChange={(e) => setRoomId(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
-                      className="h-12 text-base"
-                      style={{ fontFamily: 'Inter, sans-serif' }}
+                      className="h-12 text-base bg-gray-950/50 border-gray-800 text-white placeholder-gray-500 focus:border-cyan-500/50 focus:ring-cyan-500/20"
                     />
 
                     <Button
@@ -192,27 +197,21 @@ const Landing = () => {
                       onClick={handleJoinRoom}
                       disabled={!roomId.trim() || isLoading}
                       variant="outline"
-                      className="w-full h-12 text-base font-medium"
-                      style={{
-                        borderColor: '#0097a7',
-                        color: '#0097a7',
-                        fontFamily: 'Inter, sans-serif',
-                        transition: 'all 0.3s ease'
-                      }}
+                      className="w-full h-12 text-base font-semibold border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 transition-colors"
                     >
                       {isLoading ? 'Joining...' : 'Join Meeting'}
                     </Button>
                   </div>
                 </div>
 
-                <p className="text-sm text-center mt-6 text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Want to save your meetings?{' '}
+                <p className="text-sm text-center text-gray-400">
+                  Want to save your meeting archives?{' '}
                   <a
                     href="/auth"
-                    className="font-medium"
-                    style={{ color: '#0097a7', textDecoration: 'none' }}
+                    className="font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
+                    style={{ textDecoration: 'none' }}
                   >
-                    Sign in
+                    Sign in here
                   </a>
                 </p>
               </CardContent>
@@ -222,46 +221,45 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="px-6 py-20" style={{
-        background: 'rgba(255, 255, 255, 0.6)',
+      <section className="px-6 py-24 relative z-10 border-t border-gray-900" style={{
+        background: 'rgba(9, 13, 22, 0.6)',
         backdropFilter: 'blur(20px)'
       }}>
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4" style={{
-              fontFamily: 'Space Grotesk, sans-serif',
-              color: '#006064'
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+            <h2 className="text-4xl font-bold tracking-tight text-white" style={{
+              fontFamily: 'Space Grotesk, sans-serif'
             }}>Everything You Need</h2>
-            <p className="text-xl text-gray-700" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Powerful features for seamless collaboration
+            <p className="text-lg text-gray-400">
+              Powerful, AI-enhanced features to make remote collaboration smooth and secure.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <Card
                 key={index}
-                className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                className="transition-all duration-300 border border-white/5 hover:border-cyan-500/30 hover:shadow-[0_4px_25px_rgba(0,180,216,0.08)] hover:-translate-y-1"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                  background: 'rgba(15, 23, 42, 0.35)',
+                  backdropFilter: 'blur(10px)'
                 }}
               >
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4" style={{
-                    background: 'linear-gradient(135deg, #0097a7, #00acc1)',
-                    boxShadow: '0 4px 12px rgba(0, 151, 167, 0.2)'
+                <CardContent className="p-7 space-y-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)'
                   }}>
-                    <div className="text-white">{feature.icon}</div>
+                    {feature.icon}
                   </div>
-                  <h3 className="text-lg font-semibold mb-2" style={{
-                    fontFamily: 'Space Grotesk, sans-serif',
-                    color: '#006064'
-                  }}>{feature.title}</h3>
-                  <p className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {feature.description}
-                  </p>
+                  <div>
+                    <h3 className="text-xl font-bold text-white tracking-tight mb-2" style={{
+                      fontFamily: 'Space Grotesk, sans-serif'
+                    }}>{feature.title}</h3>
+                    <p className="text-sm text-gray-400 leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -270,11 +268,11 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="px-6 py-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-            © 2025 SkyConnect. Built with care for seamless collaboration.
-          </p>
+      <footer className="px-6 py-10 relative z-10 border-t border-gray-900/60" style={{
+        background: 'rgba(9, 13, 22, 0.4)'
+      }}>
+        <div className="max-w-7xl mx-auto text-center text-sm text-gray-500">
+          <p>© 2026 SkyConnect. Built with care for seamless collaboration.</p>
         </div>
       </footer>
     </div>

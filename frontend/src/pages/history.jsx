@@ -1,35 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Home, Video, Calendar, Clock, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { AuthContext } from '../contexts/AuthContext';
 
 const History = () => {
   const navigate = useNavigate();
-  const [meetings, setMeetings] = useState([
-    {
-      id: '1',
-      meetingCode: 'abc123xyz',
-      date: '2025-01-15T14:30:00',
-      duration: '45 min',
-      participants: 4
-    },
-    {
-      id: '2',
-      meetingCode: 'def456uvw',
-      date: '2025-01-14T10:00:00',
-      duration: '1h 20min',
-      participants: 7
-    },
-    {
-      id: '3',
-      meetingCode: 'ghi789rst',
-      date: '2025-01-13T16:45:00',
-      duration: '30 min',
-      participants: 3
-    }
-  ]);
+  const [meetings, setMeetings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { getHistoryOfUser } = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getHistoryOfUser();
+        setMeetings(data || []);
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to load meeting history');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -101,7 +99,13 @@ const History = () => {
           </p>
         </div>
 
-        {meetings.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-16">
+            <p className="text-gray-600 text-lg font-medium animate-pulse" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Loading meeting history...
+            </p>
+          </div>
+        ) : meetings.length === 0 ? (
           <Card className="text-center py-16" style={{
             background: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(10px)',
@@ -135,7 +139,7 @@ const History = () => {
           <div className="space-y-4">
             {meetings.map((meeting) => (
               <Card
-                key={meeting.id}
+                key={meeting._id || meeting.id}
                 className="transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
                 style={{
                   background: 'rgba(255, 255, 255, 0.95)',
@@ -159,7 +163,7 @@ const History = () => {
                             color: '#006064'
                           }}>Meeting #{meeting.meetingCode}</h3>
                           <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                            {meeting.participants} participants
+                            {meeting.participants || 'N/A'} participants
                           </p>
                         </div>
                       </div>
@@ -175,13 +179,13 @@ const History = () => {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Clock className="w-4 h-4" style={{ color: '#0097a7' }} />
-                          <span style={{ fontFamily: 'Inter, sans-serif' }}>{meeting.duration}</span>
+                          <span style={{ fontFamily: 'Inter, sans-serif' }}>{meeting.duration || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
 
                     <Button
-                      data-testid={`rejoin-meeting-${meeting.id}-btn`}
+                      data-testid={`rejoin-meeting-${meeting._id || meeting.id}-btn`}
                       onClick={() => handleRejoinMeeting(meeting.meetingCode)}
                       className="gap-2 font-medium"
                       style={{

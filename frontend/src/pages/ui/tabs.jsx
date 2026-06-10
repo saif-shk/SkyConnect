@@ -3,6 +3,10 @@ import React, { useState } from 'react';
 const Tabs = ({ value, onValueChange, children, ...props }) => {
   const [activeTab, setActiveTab] = useState(value);
   
+  React.useEffect(() => {
+    setActiveTab(value);
+  }, [value]);
+  
   const handleTabChange = (newValue) => {
     setActiveTab(newValue);
     if (onValueChange) onValueChange(newValue);
