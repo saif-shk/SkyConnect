@@ -54,12 +54,19 @@ const Landing = () => {
     let width = window.innerWidth;
     let height = window.innerHeight;
 
+    let targetX = width / 2;
+    let targetY = height / 2;
+    let currentX = width / 2;
+    let currentY = height / 2;
+
     const handleResize = () => {
       if (!canvas) return;
       width = window.innerWidth;
       height = window.innerHeight;
       canvas.width = width;
       canvas.height = height;
+      targetX = width / 2;
+      targetY = height / 2;
     };
 
     window.addEventListener('resize', handleResize);
@@ -102,6 +109,8 @@ const Landing = () => {
     let targetSpeedY = 0.0015;
 
     const handleMouseMove = (e) => {
+      targetX = e.clientX;
+      targetY = e.clientY;
       const x = e.clientX - width / 2;
       const y = e.clientY - height / 2;
       // Map mouse offset to target speeds (subtle interactive rotation speed)
@@ -110,6 +119,8 @@ const Landing = () => {
     };
 
     const handleMouseLeave = () => {
+      targetX = width / 2;
+      targetY = height / 2;
       targetSpeedX = 0.0015;
       targetSpeedY = 0.0015;
     };
@@ -126,8 +137,9 @@ const Landing = () => {
       if (radius < 100) radius = 100;
       if (radius > 170) radius = 170;
 
-      const centerX = width / 2;
-      const centerY = height / 2;
+      // Smoothly lerp center position to the target (mouse) coordinates
+      currentX += (targetX - currentX) * 0.08;
+      currentY += (targetY - currentY) * 0.08;
 
       // Update rotation angles with easing
       speedX += (targetSpeedX - speedX) * 0.05;
@@ -157,8 +169,8 @@ const Landing = () => {
         // Perspective projection
         const perspective = 300;
         const scale = perspective / (perspective + pz);
-        const screenX = centerX + px * scale;
-        const screenY = centerY + py * scale;
+        const screenX = currentX + px * scale;
+        const screenY = currentY + py * scale;
 
         return { screenX, screenY, scale, pz };
       });
